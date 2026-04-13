@@ -161,7 +161,7 @@ export default function SkinsPage() {
           {/* Pot Info */}
           <Card className="border-border mb-4">
             <CardContent className="py-3 flex items-center justify-between">
-              <span className="text-sm text-[#006747]/60">Group Pot</span>
+              <span className="text-sm text-[#006747]/60">Total Pot</span>
               <span className="font-bold text-[#006747] text-lg">
                 {formatCents(currentGroup.totalPotCents)}
               </span>

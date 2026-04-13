@@ -30,11 +30,6 @@ export async function GET(
     .select("*")
     .eq("tournament_id", id);
 
-  const { data: tournamentGroups } = await supabase
-    .from("groups")
-    .select("*")
-    .eq("tournament_id", id);
-
   const { data: holes } = await supabase
     .from("course_holes")
     .select("*")
@@ -50,33 +45,16 @@ export async function GET(
 
   const allHighlights = [];
 
-  // If no groups, treat all players with scores as one group
-  const feedGroups = (tournamentGroups || []).length > 0
-    ? (tournamentGroups || [])
-    : [{ id: -1, name: "All Players" }];
-
-  for (const group of feedGroups) {
-    let playerIds: number[];
-
-    if (group.id === -1) {
-      playerIds = [...new Set((allScores || []).map((s) => s.player_id))];
-    } else {
-      const { data: gp } = await supabase
-        .from("group_players")
-        .select("*")
-        .eq("group_id", group.id);
-      playerIds = (gp || []).map((p) => p.player_id);
-    }
+  // Skins is always all players together
+  {
+    const playerIds = (allPlayers || []).map((p) => p.id);
 
     const playerNames: Record<number, string> = {};
-    (allPlayers || [])
-      .filter((p) => playerIds.includes(p.id))
-      .forEach((p) => {
-        playerNames[p.id] = p.nickname || p.name;
-      });
+    (allPlayers || []).forEach((p) => {
+      playerNames[p.id] = p.nickname || p.name;
+    });
 
-    const groupScores = (allScores || [])
-      .filter((s) => playerIds.includes(s.player_id))
+    const allScoresMapped = (allScores || [])
       .map((s) => ({
         playerId: s.player_id,
         hole: s.hole,
@@ -84,7 +62,7 @@ export async function GET(
       }));
 
     const skinsSummary = computeSkins(
-      groupScores,
+      allScoresMapped,
       playerIds,
       tournament.num_holes,
       "split_among_winners",
@@ -94,14 +72,14 @@ export async function GET(
       skinsSummary.results,
       playerNames,
       coursePars,
-      groupScores
+      allScoresMapped
     );
 
     allHighlights.push(
       ...highlights.map((h) => ({
         ...h,
-        groupId: group.id,
-        groupName: group.name,
+        groupId: -1,
+        groupName: "All Players",
       }))
     );
   }
@@ -109,35 +87,21 @@ export async function GET(
   // Sort by hole descending (most recent first)
   allHighlights.sort((a, b) => b.hole - a.hole);
 
-  // Detect hot seat (player with most skins across all groups)
+  // Detect hot seat — all players in one skins game
   const skinCounts: Record<string, number> = {};
-  for (const group of feedGroups) {
-    let playerIds: number[];
-    if (group.id === -1) {
-      playerIds = [...new Set((allScores || []).map((s) => s.player_id))];
-    } else {
-      const { data: gp } = await supabase
-        .from("group_players")
-        .select("*")
-        .eq("group_id", group.id);
-      playerIds = (gp || []).map((p) => p.player_id);
-    }
-    const groupScores = (allScores || [])
-      .filter((s) => playerIds.includes(s.player_id))
-      .map((s) => ({ playerId: s.player_id, hole: s.hole, strokes: s.strokes }));
+  {
+    const allPlayerIds = (allPlayers || []).map((p) => p.id);
+    const allScoresMapped2 = (allScores || []).map((s) => ({
+      playerId: s.player_id, hole: s.hole, strokes: s.strokes,
+    }));
     const skinsSummary = computeSkins(
-      groupScores,
-      playerIds,
-      tournament.num_holes,
-      "split_among_winners",
-      (tournament.skins_rule || "carry_over") as SkinsRule
+      allScoresMapped2, allPlayerIds, tournament.num_holes,
+      "split_among_winners", (tournament.skins_rule || "carry_over") as SkinsRule
     );
-
     for (const [playerId, skins] of Object.entries(skinsSummary.playerSkins)) {
       const player = (allPlayers || []).find((p) => p.id === Number(playerId));
       if (player && skins > 0) {
-        const name = player.nickname || player.name;
-        skinCounts[name] = (skinCounts[name] || 0) + skins;
+        skinCounts[player.nickname || player.name] = skins;
       }
     }
   }
@@ -322,22 +286,13 @@ export async function GET(
       }
 
       // Closer — won the skin on hole 18
-      for (const group of feedGroups) {
-        let pIds: number[];
-        if (group.id === -1) {
-          pIds = [...new Set((allScores || []).map((s) => s.player_id))];
-        } else {
-          const { data: gp } = await supabase
-            .from("group_players")
-            .select("*")
-            .eq("group_id", group.id);
-          pIds = (gp || []).map((p) => p.player_id);
-        }
-        const gScores = (allScores || [])
-          .filter((s) => pIds.includes(s.player_id))
-          .map((s) => ({ playerId: s.player_id, hole: s.hole, strokes: s.strokes }));
-        const skinsSummary = computeSkins(gScores, pIds, tournament.num_holes, "split_among_winners", (tournament.skins_rule || "carry_over") as SkinsRule);
-        const hole18 = skinsSummary.results.find((r) => r.hole === 18);
+      {
+        const allPlayerIds = (allPlayers || []).map((p) => p.id);
+        const closerScores = (allScores || []).map((s) => ({
+          playerId: s.player_id, hole: s.hole, strokes: s.strokes,
+        }));
+        const closerSkins = computeSkins(closerScores, allPlayerIds, tournament.num_holes, "split_among_winners", (tournament.skins_rule || "carry_over") as SkinsRule);
+        const hole18 = closerSkins.results.find((r) => r.hole === 18);
         if (hole18?.winnerId) {
           const player = (allPlayers || []).find((p) => p.id === hole18.winnerId);
           if (player) {
@@ -348,7 +303,6 @@ export async function GET(
               detail: `won the skin on 18${hole18.skinsValue > 1 ? ` (${hole18.skinsValue} skins!)` : ""}`,
             });
           }
-          break;
         }
       }
     }

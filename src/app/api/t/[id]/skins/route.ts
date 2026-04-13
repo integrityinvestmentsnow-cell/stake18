@@ -3,13 +3,11 @@ import { createClient } from "@/lib/supabase/server";
 import { computeSkins, computePayouts, type SkinsRule } from "@/lib/skins";
 
 export async function GET(
-  request: Request,
+  _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params;
   const supabase = await createClient();
-  const url = new URL(request.url);
-  const groupId = url.searchParams.get("groupId");
 
   const { data: tournament } = await supabase
     .from("tournaments")
@@ -20,10 +18,6 @@ export async function GET(
   if (!tournament) {
     return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
   }
-
-  const { data: tournamentGroups } = groupId
-    ? await supabase.from("groups").select("*").eq("id", Number(groupId))
-    : await supabase.from("groups").select("*").eq("tournament_id", id);
 
   const { data: allScores } = await supabase
     .from("scores")
@@ -40,79 +34,53 @@ export async function GET(
     .select("*")
     .eq("tournament_id", id);
 
-  const results = [];
+  // Skins is always ALL players together — one big game
+  const playerIds = (allPlayers || []).map((p) => p.id);
 
-  // If no groups exist, treat all players with scores as one group
-  const groupsList = (tournamentGroups || []).length > 0
-    ? (tournamentGroups || [])
-    : [{ id: -1, name: "All Players" }];
+  const allScoresMapped = (allScores || []).map((s) => ({
+    playerId: s.player_id,
+    hole: s.hole,
+    strokes: s.strokes,
+  }));
 
-  for (const group of groupsList) {
-    let playerIds: number[];
-    let groupPlayerData: typeof allPlayers;
+  const skinsSummary = computeSkins(
+    allScoresMapped,
+    playerIds,
+    tournament.num_holes,
+    tournament.unclaimed_rule as "split_among_winners",
+    (tournament.skins_rule || "carry_over") as SkinsRule
+  );
 
-    if (group.id === -1) {
-      // Virtual group: all players who have scores
-      const scoredPlayerIds = [...new Set((allScores || []).map((s) => s.player_id))];
-      playerIds = scoredPlayerIds;
-      groupPlayerData = (allPlayers || []).filter((p) => scoredPlayerIds.includes(p.id));
-    } else {
-      const { data: gp } = await supabase
-        .from("group_players")
-        .select("*")
-        .eq("group_id", group.id);
+  // Total pot = buy-in × all players in the tournament
+  const totalPotCents = tournament.buy_in_cents * (allPlayers || []).length;
 
-      playerIds = (gp || []).map((p) => p.player_id);
-      groupPlayerData = (allPlayers || []).filter((p) =>
-        playerIds.includes(p.id)
-      );
-    }
+  const payouts = computePayouts(
+    skinsSummary.playerSkins,
+    totalPotCents,
+    skinsSummary.totalSkinsAwarded
+  );
 
-    const groupScores = (allScores || [])
-      .filter((s) => playerIds.includes(s.player_id))
-      .map((s) => ({
-        playerId: s.player_id,
-        hole: s.hole,
-        strokes: s.strokes,
-      }));
-
-    const skinsSummary = computeSkins(
-      groupScores,
-      playerIds,
-      tournament.num_holes,
-      tournament.unclaimed_rule as "split_among_winners",
-      (tournament.skins_rule || "carry_over") as SkinsRule
-    );
-
-    const totalPotCents = tournament.buy_in_cents * groupPlayerData.length;
-    const payouts = computePayouts(
-      skinsSummary.playerSkins,
-      totalPotCents,
-      skinsSummary.totalSkinsAwarded
-    );
-
-    const playerNames: Record<number, string> = {};
-    groupPlayerData.forEach((p) => {
-      playerNames[p.id] = p.nickname || p.name;
-    });
-
-    results.push({
-      group: { id: group.id, name: group.name },
-      players: groupPlayerData.map((p) => ({
-        id: p.id,
-        name: p.name,
-        nickname: p.nickname,
-        avatarEmoji: p.avatar_emoji,
-      })),
-      skinsSummary,
-      payouts,
-      playerNames,
-      totalPotCents,
-    });
-  }
+  const playerNames: Record<number, string> = {};
+  (allPlayers || []).forEach((p) => {
+    playerNames[p.id] = p.nickname || p.name;
+  });
 
   return NextResponse.json({
-    results,
+    results: [
+      {
+        group: { id: -1, name: "All Players" },
+        players: (allPlayers || []).map((p) => ({
+          id: p.id,
+          name: p.name,
+          nickname: p.nickname,
+          avatarEmoji: p.avatar_emoji,
+        })),
+        skinsSummary,
+        payouts,
+        playerNames,
+        totalPotCents,
+      },
+    ],
     courseHoles: holes,
   });
 }
