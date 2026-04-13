@@ -163,6 +163,50 @@ export default function Home() {
         </Card>
       </div>
 
+      {/* Coming Soon */}
+      <div className="mt-16 max-w-md mx-auto w-full">
+        <h2 className="text-lg font-bold text-[#006747] text-center mb-6">
+          Coming Soon
+        </h2>
+        <div className="space-y-3">
+          {[
+            {
+              name: "Nassau",
+              desc: "Front 9, back 9, and overall — the classic 3-bet format",
+              icon: "🎰",
+            },
+            {
+              name: "Match Play",
+              desc: "Head-to-head hole-by-hole battles within your group",
+              icon: "⚔️",
+            },
+            {
+              name: "Settlement",
+              desc: "One-tap Venmo & Zelle links — who owes who, instantly",
+              icon: "💸",
+            },
+            {
+              name: "Season Stats",
+              desc: "Track lifetime winnings, streaks, and rivalries",
+              icon: "📊",
+            },
+          ].map((item) => (
+            <div
+              key={item.name}
+              className="flex items-center gap-4 px-4 py-3 rounded-xl border border-[#d4e4db] bg-[#f2f7f4]/50"
+            >
+              <span className="text-2xl">{item.icon}</span>
+              <div>
+                <p className="font-semibold text-sm text-[#006747]">
+                  {item.name}
+                </p>
+                <p className="text-xs text-[#006747]/50">{item.desc}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
       {/* Footer */}
       <p className="text-xs text-muted-foreground mt-12 text-center">
         No download required. Share a PIN and play.
