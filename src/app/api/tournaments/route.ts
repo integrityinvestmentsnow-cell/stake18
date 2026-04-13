@@ -100,10 +100,17 @@ export async function DELETE(request: Request) {
   }
 
   // Delete in order (foreign key dependencies)
-  await supabase.from("reactions").delete().eq("tournament_id", id);
-  await supabase.from("presses").delete().eq("tournament_id", id);
-  await supabase.from("scores").delete().eq("tournament_id", id);
-  await supabase.from("scorer_groups").delete().eq("tournament_id", id);
+  const errors: string[] = [];
+
+  const del = async (table: string, col: string, val: string) => {
+    const { error } = await supabase.from(table).delete().eq(col, val);
+    if (error) errors.push(`${table}: ${error.message}`);
+  };
+
+  await del("reactions", "tournament_id", id);
+  await del("presses", "tournament_id", id);
+  await del("scores", "tournament_id", id);
+  await del("scorer_groups", "tournament_id", id);
 
   // Delete group_players for all groups in this tournament
   const { data: groups } = await supabase
@@ -111,15 +118,20 @@ export async function DELETE(request: Request) {
     .select("id")
     .eq("tournament_id", id);
   for (const g of groups || []) {
-    await supabase.from("group_players").delete().eq("group_id", g.id);
+    await del("group_players", "group_id", String(g.id));
   }
-  await supabase.from("groups").delete().eq("tournament_id", id);
+  await del("groups", "tournament_id", id);
+  await del("tournament_players", "tournament_id", id);
+  await del("course_holes", "tournament_id", id);
+  await del("event_rsvps", "tournament_id", id);
+  await del("player_titles", "tournament_id", id);
 
-  await supabase.from("tournament_players").delete().eq("tournament_id", id);
-  await supabase.from("course_holes").delete().eq("tournament_id", id);
-  await supabase.from("event_rsvps").delete().eq("tournament_id", id);
-  await supabase.from("player_titles").delete().eq("tournament_id", id);
-  await supabase.from("tournaments").delete().eq("id", id);
+  const { error: finalError } = await supabase.from("tournaments").delete().eq("id", id);
+  if (finalError) errors.push(`tournaments: ${finalError.message}`);
+
+  if (errors.length > 0) {
+    return NextResponse.json({ error: "Some deletes failed", details: errors }, { status: 500 });
+  }
 
   return NextResponse.json({ success: true });
 }

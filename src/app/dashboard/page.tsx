@@ -616,11 +616,12 @@ export default function DashboardPage() {
                           e.stopPropagation();
                           if (confirm("Delete this tournament?")) {
                             const res = await fetch(`/api/tournaments?id=${t.id}`, { method: "DELETE" });
-                            if (res.ok) {
+                            const data = await res.json().catch(() => ({}));
+                            if (res.ok && data.success) {
                               fetchData();
                             } else {
-                              const data = await res.json().catch(() => ({}));
-                              alert(data.error || "Failed to delete. You may not be the owner.");
+                              alert(data.error || "Failed to delete.");
+                              if (data.details) console.error("Delete errors:", data.details);
                             }
                           }
                         }}
