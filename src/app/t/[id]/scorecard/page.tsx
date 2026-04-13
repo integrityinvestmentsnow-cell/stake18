@@ -280,6 +280,38 @@ export default function ScorecardPage() {
     );
   }
 
+  // Check if user has a group — spectators can't score
+  const hasMyGroup = typeof window !== "undefined" && (
+    localStorage.getItem(`stake18-my-group-${id}`) !== null ||
+    localStorage.getItem(`stake18-group-${id}`) !== null
+  );
+
+  if (!hasMyGroup && groupPlayers.length === 0) {
+    return (
+      <div className="px-4 py-12 max-w-md mx-auto text-center">
+        <p className="text-3xl mb-3">🔒</p>
+        <h2 className="text-lg font-bold text-[#006747] mb-2">
+          Scoring Requires a Group
+        </h2>
+        <p className="text-sm text-muted-foreground mb-6">
+          Enter the tournament PIN to pick your group and start scoring.
+        </p>
+        <Button
+          onClick={() => window.location.href = "/join"}
+          className="bg-[#006747] hover:bg-[#005538] h-12 px-8 text-base"
+        >
+          Enter PIN to Join
+        </Button>
+        <p className="text-xs text-muted-foreground mt-4">
+          Just watching?{" "}
+          <a href={`/t/${id}/leaderboard`} className="text-[#006747] font-semibold hover:underline">
+            View the Leaderboard
+          </a>
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="px-4 py-4 max-w-lg mx-auto">
       {/* My Group Header */}

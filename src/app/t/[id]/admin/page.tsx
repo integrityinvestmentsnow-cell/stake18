@@ -14,6 +14,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { createClient } from "@/lib/supabase/client";
 
 interface Player {
   id: number;
@@ -48,6 +49,7 @@ export default function AdminPage() {
   const [tournamentPin, setTournamentPin] = useState("");
   const [skinsRule, setSkinsRule] = useState<"carry_over" | "no_carry">("carry_over");
   const [loading, setLoading] = useState(true);
+  const [isOwner, setIsOwner] = useState(false);
 
   // Create group
   const [showCreateGroup, setShowCreateGroup] = useState(false);
@@ -66,9 +68,14 @@ export default function AdminPage() {
   const [editGroupName, setEditGroupName] = useState("");
 
   const fetchData = useCallback(async () => {
+    // Check if user is the owner
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
     const res = await fetch(`/api/t/${id}`);
     if (res.ok) {
       const data = await res.json();
+      setIsOwner(user?.id === data.tournament.ownerId);
       setPlayers(data.players);
       setExistingGroups(data.groups);
       setCourseHoles(
@@ -218,9 +225,27 @@ export default function AdminPage() {
     );
   }
 
+  if (!isOwner) {
+    return (
+      <div className="px-4 py-12 max-w-md mx-auto text-center">
+        <p className="text-3xl mb-3">🔒</p>
+        <h2 className="text-lg font-bold text-[#006747] mb-2">Admin Only</h2>
+        <p className="text-sm text-muted-foreground mb-6">
+          Only the tournament organizer can access this page.
+        </p>
+        <a
+          href={`/t/${id}/leaderboard`}
+          className="text-sm text-[#006747] font-semibold hover:underline"
+        >
+          View the Leaderboard →
+        </a>
+      </div>
+    );
+  }
+
   return (
     <div className="px-4 py-6 max-w-lg mx-auto space-y-6">
-      <h2 className="text-xl font-bold">Tournament Admin</h2>
+      <h2 className="text-xl font-bold text-[#006747]">Tournament Admin</h2>
 
       {/* Tournament PIN */}
       {tournamentPin && (
