@@ -1,54 +1,29 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
 import { useParams, usePathname } from "next/navigation";
 import { BottomTabBar } from "@/components/layout/bottom-tab-bar";
 import { TournamentHeader } from "@/components/layout/tournament-header";
-import { createClient } from "@/lib/supabase/client";
+import { TournamentProvider, useTournament } from "@/lib/tournament-context";
 
-interface TournamentData {
-  tournament: {
-    id: string;
-    ownerId: string;
-    name: string;
-    buyInCents: number;
-    status: string;
-  };
-  players: { id: number; name: string }[];
-}
-
-export default function TournamentLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+function TournamentLayoutInner({ children }: { children: React.ReactNode }) {
   const params = useParams();
-  const id = params.id as string;
   const pathname = usePathname();
-  const [data, setData] = useState<TournamentData | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
+  const id = params.id as string;
+  const { data, userId, loading } = useTournament();
   const isLandingPage = pathname === `/t/${id}`;
 
-  const fetchData = useCallback(async () => {
-    const res = await fetch(`/api/t/${id}`);
-    if (res.ok) {
-      const json = await res.json();
-      setData(json);
-    }
-  }, [id]);
-
-  useEffect(() => {
-    fetchData();
-    const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      setUserId(user?.id || null);
-    });
-  }, [fetchData]);
+  if (loading) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <p className="text-muted-foreground">Loading...</p>
+      </div>
+    );
+  }
 
   if (!data) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <p className="text-muted-foreground">Loading tournament...</p>
+        <p className="text-muted-foreground">Tournament not found</p>
       </div>
     );
   }
@@ -68,5 +43,20 @@ export default function TournamentLayout({
       <main className="flex-1 pb-20">{children}</main>
       <BottomTabBar tournamentId={id} />
     </div>
+  );
+}
+
+export default function TournamentLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const params = useParams();
+  const id = params.id as string;
+
+  return (
+    <TournamentProvider tournamentId={id}>
+      <TournamentLayoutInner>{children}</TournamentLayoutInner>
+    </TournamentProvider>
   );
 }
