@@ -169,8 +169,13 @@ export default function FeedPage() {
           </Card>
         ) : (
           <div className="space-y-2">
-            {highlights.map((highlight, i) => {
-              const holeCounts = getReactionsForHole(highlight.hole);
+            {(() => {
+              const seenHoles = new Set<number>();
+              return highlights.map((highlight, i) => {
+              // Only show reactions on the first highlight per hole
+              const isFirstForHole = !seenHoles.has(highlight.hole);
+              if (isFirstForHole) seenHoles.add(highlight.hole);
+              const holeCounts = isFirstForHole ? getReactionsForHole(highlight.hole) : {};
               const hasReactions = Object.values(holeCounts).some((c) => c > 0);
               const cardKey = `${highlight.hole}-${highlight.type}-${i}`;
               const pickerOpen = openPickerKey === cardKey;
@@ -247,7 +252,8 @@ export default function FeedPage() {
                   )}
                 </div>
               );
-            })}
+            });
+            })()}
           </div>
         )}
       </div>
