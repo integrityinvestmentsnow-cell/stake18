@@ -105,8 +105,12 @@ export function TournamentProvider({
       )
       .subscribe();
 
+    // Fallback polling every 10 seconds in case realtime doesn't fire
+    const poll = setInterval(() => refreshScores(), 10000);
+
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(poll);
     };
   }, [tournamentId, refreshData, refreshScores]);
 
