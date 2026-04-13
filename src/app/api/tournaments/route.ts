@@ -129,8 +129,13 @@ export async function DELETE(request: Request) {
   const { error: finalError } = await supabase.from("tournaments").delete().eq("id", id);
   if (finalError) errors.push(`tournaments: ${finalError.message}`);
 
-  if (errors.length > 0) {
-    return NextResponse.json({ error: "Some deletes failed", details: errors }, { status: 500 });
+  // Verify the tournament is actually gone
+  const { data: check } = await supabase.from("tournaments").select("id").eq("id", id).single();
+  if (check) {
+    return NextResponse.json({
+      error: "Delete failed — tournament still exists. RLS may be blocking the operation.",
+      details: errors,
+    }, { status: 500 });
   }
 
   return NextResponse.json({ success: true });
