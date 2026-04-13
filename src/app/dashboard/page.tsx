@@ -613,9 +613,15 @@ export default function DashboardPage() {
                       <button
                         onClick={async (e) => {
                           e.preventDefault();
+                          e.stopPropagation();
                           if (confirm("Delete this tournament?")) {
-                            await fetch(`/api/tournaments?id=${t.id}`, { method: "DELETE" });
-                            fetchData();
+                            const res = await fetch(`/api/tournaments?id=${t.id}`, { method: "DELETE" });
+                            if (res.ok) {
+                              fetchData();
+                            } else {
+                              const data = await res.json().catch(() => ({}));
+                              alert(data.error || "Failed to delete. You may not be the owner.");
+                            }
                           }
                         }}
                         className="text-xs text-muted-foreground hover:text-red-500 px-1"
