@@ -61,6 +61,7 @@ export default function DashboardPage() {
   const [showAddPlayer, setShowAddPlayer] = useState(false);
   const [showCreateTournament, setShowCreateTournament] = useState(false);
   const [showAddCourse, setShowAddCourse] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState<RosterPlayer | null>(null);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
 
@@ -243,6 +244,8 @@ export default function DashboardPage() {
 
   async function createTournament(e: React.FormEvent) {
     e.preventDefault();
+    if (creating) return;
+    setCreating(true);
 
     const selectedCourse = courses.find((c) => c.id === selectedCourseId);
 
@@ -262,7 +265,10 @@ export default function DashboardPage() {
       }),
     });
 
-    if (!res.ok) return;
+    if (!res.ok) {
+      setCreating(false);
+      return;
+    }
     const { id } = await res.json();
 
     for (const rosterPlayerId of selectedPlayers) {
@@ -564,10 +570,10 @@ export default function DashboardPage() {
 
             <Button
               type="submit"
-              className="w-full"
-              disabled={selectedPlayers.length < 2}
+              className="w-full bg-[#006747] hover:bg-[#005538]"
+              disabled={selectedPlayers.length < 2 || creating}
             >
-              Create & Set Up Groups
+              {creating ? "Creating..." : "Create Tournament"}
             </Button>
           </form>
         </DialogContent>
@@ -579,18 +585,18 @@ export default function DashboardPage() {
           <h2 className="text-xl font-semibold">My Tournaments</h2>
           <div className="space-y-2">
             {tournaments.map((t) => (
-              <Link key={t.id} href={`/t/${t.id}/admin`}>
-                <Card className="border-border hover:border-[#006747]/30 transition-colors cursor-pointer mb-2">
-                  <CardContent className="py-3">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-semibold text-[#006747]">{t.name}</p>
-                        <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
-                          <span>{t.date}</span>
-                          <span>{t.playerCount} players</span>
-                          {t.pin && <span>PIN: {t.pin}</span>}
-                        </div>
+              <Card key={t.id} className="border-border hover:border-[#006747]/30 transition-colors cursor-pointer mb-2">
+                <CardContent className="py-3">
+                  <div className="flex items-center justify-between">
+                    <Link href={`/t/${t.id}/admin`} className="flex-1">
+                      <p className="font-semibold text-[#006747]">{t.name}</p>
+                      <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
+                        <span>{t.date}</span>
+                        <span>{t.playerCount} players</span>
+                        {t.pin && <span>PIN: {t.pin}</span>}
                       </div>
+                    </Link>
+                    <div className="flex items-center gap-2">
                       <Badge
                         variant="secondary"
                         className={cn(
@@ -604,10 +610,22 @@ export default function DashboardPage() {
                       >
                         {t.status === "active" ? "Live" : t.status === "finalized" ? "Done" : "Setup"}
                       </Badge>
+                      <button
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          if (confirm("Delete this tournament?")) {
+                            await fetch(`/api/tournaments?id=${t.id}`, { method: "DELETE" });
+                            fetchData();
+                          }
+                        }}
+                        className="text-xs text-muted-foreground hover:text-red-500 px-1"
+                      >
+                        ✕
+                      </button>
                     </div>
-                  </CardContent>
-                </Card>
-              </Link>
+                  </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </div>
