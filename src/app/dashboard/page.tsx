@@ -614,18 +614,29 @@ export default function DashboardPage() {
                         onClick={async (e) => {
                           e.preventDefault();
                           e.stopPropagation();
-                          if (confirm("Delete this tournament?")) {
-                            const res = await fetch(`/api/tournaments?id=${t.id}`, { method: "DELETE" });
-                            const data = await res.json().catch(() => ({}));
-                            if (res.ok && data.success) {
-                              fetchData();
+                          if (!confirm("Delete this tournament?")) return;
+
+                          const btn = e.currentTarget;
+                          btn.textContent = "...";
+                          try {
+                            const res = await fetch(`/api/tournaments?id=${t.id}`, {
+                              method: "DELETE",
+                              credentials: "same-origin",
+                            });
+                            if (res.ok) {
+                              // Remove from local state immediately
+                              setTournaments((prev) => prev.filter((x) => x.id !== t.id));
                             } else {
-                              alert(data.error || "Failed to delete.");
-                              if (data.details) console.error("Delete errors:", data.details);
+                              const text = await res.text();
+                              alert(`Delete failed (${res.status}): ${text}`);
+                              btn.textContent = "✕";
                             }
+                          } catch (err) {
+                            alert(`Network error: ${err}`);
+                            btn.textContent = "✕";
                           }
                         }}
-                        className="text-xs text-muted-foreground hover:text-red-500 px-1"
+                        className="text-xs text-muted-foreground hover:text-red-500 px-2 py-1"
                       >
                         ✕
                       </button>
