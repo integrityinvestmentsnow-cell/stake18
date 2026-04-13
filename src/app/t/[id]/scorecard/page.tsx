@@ -48,6 +48,8 @@ export default function ScorecardPage() {
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(true);
   const [queuedCount, setQueuedCount] = useState(0);
+  const [showEditGroup, setShowEditGroup] = useState(false);
+  const [editPlayerIds, setEditPlayerIds] = useState<number[]>([]);
 
   const fetchData = useCallback(async () => {
     const [tRes, sRes] = await Promise.all([
@@ -280,8 +282,34 @@ export default function ScorecardPage() {
 
   return (
     <div className="px-4 py-4 max-w-lg mx-auto">
-      {/* Group Selector */}
-      {groups.length > 0 && (
+      {/* My Group Header */}
+      {groupPlayers.length > 0 && (
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-semibold text-[#006747]">My Group</p>
+            <div className="flex -space-x-1">
+              {groupPlayers.slice(0, 4).map((p) => (
+                <span key={p.id} className="text-sm">{p.avatarEmoji || "🏌️"}</span>
+              ))}
+              {groupPlayers.length > 4 && (
+                <span className="text-xs text-muted-foreground ml-1">+{groupPlayers.length - 4}</span>
+              )}
+            </div>
+          </div>
+          <button
+            onClick={() => {
+              setEditPlayerIds(groupPlayers.map((p) => p.id));
+              setShowEditGroup(true);
+            }}
+            className="text-xs font-semibold text-[#006747] hover:underline"
+          >
+            Edit Group
+          </button>
+        </div>
+      )}
+
+      {/* Group Selector (if multiple groups exist) */}
+      {groups.length > 1 && (
         <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
           {groups.map((group) => (
             <button
@@ -289,8 +317,8 @@ export default function ScorecardPage() {
               onClick={() => selectGroup(group.id)}
               className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
                 selectedGroupId === group.id
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-card border border-border text-muted-foreground hover:text-foreground"
+                  ? "bg-[#006747] text-white"
+                  : "bg-[#f2f7f4] border border-[#d4e4db] text-[#006747]"
               }`}
             >
               {group.name}
@@ -300,7 +328,7 @@ export default function ScorecardPage() {
       )}
 
       {groupPlayers.length === 0 ? (
-        <Card className="bg-card border-border">
+        <Card className="border-border">
           <CardContent className="py-12 text-center">
             <p className="text-muted-foreground">Select a group to enter scores</p>
           </CardContent>
@@ -533,6 +561,97 @@ export default function ScorecardPage() {
               })}
           </div>
         </>
+      )}
+
+      {/* Edit Group Modal */}
+      {showEditGroup && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-end justify-center">
+          <div className="w-full max-w-lg bg-white rounded-t-2xl p-4 pb-8 max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-bold text-[#006747]">Edit Group</h3>
+              <button
+                onClick={() => setShowEditGroup(false)}
+                className="text-sm text-muted-foreground"
+              >
+                Cancel
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground mb-3">
+              Tap players to add or remove from your group
+            </p>
+            <div className="space-y-2 mb-4">
+              {players.map((player) => {
+                const isSelected = editPlayerIds.includes(player.id);
+                return (
+                  <button
+                    key={player.id}
+                    onClick={() => {
+                      setEditPlayerIds((prev) =>
+                        isSelected
+                          ? prev.filter((p) => p !== player.id)
+                          : [...prev, player.id]
+                      );
+                    }}
+                    className={cn(
+                      "w-full flex items-center gap-3 p-3 rounded-lg border text-left transition-colors",
+                      isSelected
+                        ? "border-[#006747] bg-[#006747]/5"
+                        : "border-[#d4e4db] bg-white"
+                    )}
+                  >
+                    <div className={cn(
+                      "w-5 h-5 rounded border-2 flex items-center justify-center",
+                      isSelected ? "border-[#006747] bg-[#006747]" : "border-gray-300"
+                    )}>
+                      {isSelected && <span className="text-white text-xs font-bold">✓</span>}
+                    </div>
+                    <span className="text-lg">{player.avatarEmoji || "🏌️"}</span>
+                    <span className="font-medium text-[#006747]">
+                      {player.nickname || player.name}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            <Button
+              onClick={async () => {
+                // Update the group
+                const myGroup = localStorage.getItem(`stake18-my-group-${id}`);
+                if (myGroup) {
+                  const parsed = JSON.parse(myGroup);
+                  await fetch("/api/join", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      scorerGroupId: parsed.scorerGroupId,
+                      groupId: parsed.groupId,
+                      playerIds: editPlayerIds,
+                    }),
+                  });
+                  // Update localStorage
+                  localStorage.setItem(
+                    `stake18-my-group-${id}`,
+                    JSON.stringify({ ...parsed, playerIds: editPlayerIds })
+                  );
+                }
+                // Update local state
+                if (selectedGroupId !== null) {
+                  setGroupPlayerMap((prev) => ({
+                    ...prev,
+                    [selectedGroupId]: editPlayerIds,
+                  }));
+                }
+                setShowEditGroup(false);
+                toast.success("Group updated");
+                fetchData();
+              }}
+              className="w-full h-12 text-lg font-semibold bg-[#006747] hover:bg-[#005538]"
+              disabled={editPlayerIds.length < 2}
+            >
+              Save Group ({editPlayerIds.length} players)
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   );

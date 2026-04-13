@@ -542,8 +542,7 @@ export default function AdminPage() {
         {status === "setup" && (
           <Button
             onClick={startTournament}
-            className="w-full h-12 text-lg"
-            disabled={existingGroups.length === 0}
+            className="w-full h-12 text-lg bg-[#006747] hover:bg-[#005538]"
           >
             Start Tournament
           </Button>

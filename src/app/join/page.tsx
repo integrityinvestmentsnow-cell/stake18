@@ -83,14 +83,16 @@ export default function JoinPage() {
 
     if (res.ok) {
       const group = await res.json();
-      // Store the scorer group for "My Group" tab
+      // Store the scorer group + skins group for "My Group" tab
       localStorage.setItem(
         `stake18-my-group-${tournament.id}`,
         JSON.stringify({
           scorerGroupId: group.id,
+          groupId: group.groupId,
           playerIds: selectedPlayerIds,
         })
       );
+      localStorage.setItem(`stake18-group-${tournament.id}`, String(group.groupId));
       router.push(`/t/${tournament.id}/scorecard`);
     }
 
