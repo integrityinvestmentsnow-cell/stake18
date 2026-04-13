@@ -42,16 +42,31 @@ export async function GET(
 
   const results = [];
 
-  for (const group of tournamentGroups || []) {
-    const { data: gp } = await supabase
-      .from("group_players")
-      .select("*")
-      .eq("group_id", group.id);
+  // If no groups exist, treat all players with scores as one group
+  const groupsList = (tournamentGroups || []).length > 0
+    ? (tournamentGroups || [])
+    : [{ id: -1, name: "All Players" }];
 
-    const playerIds = (gp || []).map((p) => p.player_id);
-    const groupPlayerData = (allPlayers || []).filter((p) =>
-      playerIds.includes(p.id)
-    );
+  for (const group of groupsList) {
+    let playerIds: number[];
+    let groupPlayerData: typeof allPlayers;
+
+    if (group.id === -1) {
+      // Virtual group: all players who have scores
+      const scoredPlayerIds = [...new Set((allScores || []).map((s) => s.player_id))];
+      playerIds = scoredPlayerIds;
+      groupPlayerData = (allPlayers || []).filter((p) => scoredPlayerIds.includes(p.id));
+    } else {
+      const { data: gp } = await supabase
+        .from("group_players")
+        .select("*")
+        .eq("group_id", group.id);
+
+      playerIds = (gp || []).map((p) => p.player_id);
+      groupPlayerData = (allPlayers || []).filter((p) =>
+        playerIds.includes(p.id)
+      );
+    }
 
     const groupScores = (allScores || [])
       .filter((s) => playerIds.includes(s.player_id))

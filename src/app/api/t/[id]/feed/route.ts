@@ -50,13 +50,23 @@ export async function GET(
 
   const allHighlights = [];
 
-  for (const group of tournamentGroups || []) {
-    const { data: gp } = await supabase
-      .from("group_players")
-      .select("*")
-      .eq("group_id", group.id);
+  // If no groups, treat all players with scores as one group
+  const feedGroups = (tournamentGroups || []).length > 0
+    ? (tournamentGroups || [])
+    : [{ id: -1, name: "All Players" }];
 
-    const playerIds = (gp || []).map((p) => p.player_id);
+  for (const group of feedGroups) {
+    let playerIds: number[];
+
+    if (group.id === -1) {
+      playerIds = [...new Set((allScores || []).map((s) => s.player_id))];
+    } else {
+      const { data: gp } = await supabase
+        .from("group_players")
+        .select("*")
+        .eq("group_id", group.id);
+      playerIds = (gp || []).map((p) => p.player_id);
+    }
 
     const playerNames: Record<number, string> = {};
     (allPlayers || [])
@@ -101,12 +111,17 @@ export async function GET(
 
   // Detect hot seat (player with most skins across all groups)
   const skinCounts: Record<string, number> = {};
-  for (const group of tournamentGroups || []) {
-    const { data: gp } = await supabase
-      .from("group_players")
-      .select("*")
-      .eq("group_id", group.id);
-    const playerIds = (gp || []).map((p) => p.player_id);
+  for (const group of feedGroups) {
+    let playerIds: number[];
+    if (group.id === -1) {
+      playerIds = [...new Set((allScores || []).map((s) => s.player_id))];
+    } else {
+      const { data: gp } = await supabase
+        .from("group_players")
+        .select("*")
+        .eq("group_id", group.id);
+      playerIds = (gp || []).map((p) => p.player_id);
+    }
     const groupScores = (allScores || [])
       .filter((s) => playerIds.includes(s.player_id))
       .map((s) => ({ playerId: s.player_id, hole: s.hole, strokes: s.strokes }));
@@ -307,12 +322,17 @@ export async function GET(
       }
 
       // Closer — won the skin on hole 18
-      for (const group of tournamentGroups || []) {
-        const { data: gp } = await supabase
-          .from("group_players")
-          .select("*")
-          .eq("group_id", group.id);
-        const pIds = (gp || []).map((p) => p.player_id);
+      for (const group of feedGroups) {
+        let pIds: number[];
+        if (group.id === -1) {
+          pIds = [...new Set((allScores || []).map((s) => s.player_id))];
+        } else {
+          const { data: gp } = await supabase
+            .from("group_players")
+            .select("*")
+            .eq("group_id", group.id);
+          pIds = (gp || []).map((p) => p.player_id);
+        }
         const gScores = (allScores || [])
           .filter((s) => pIds.includes(s.player_id))
           .map((s) => ({ playerId: s.player_id, hole: s.hole, strokes: s.strokes }));
