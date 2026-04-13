@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { useTournament } from "@/lib/tournament-context";
+import { computeSkins, type SkinsRule } from "@/lib/skins";
 
 interface LeaderboardEntry {
   playerId: number;
@@ -29,7 +30,7 @@ export default function LeaderboardPage() {
   const id = params.id as string;
   const { data, scores: allScores, loading } = useTournament();
   const [selectedPlayer, setSelectedPlayer] = useState<LeaderboardEntry | null>(null);
-  const [viewMode, setViewMode] = useState<"gross" | "net">("gross");
+  const [viewMode, setViewMode] = useState<"gross" | "net" | "skins">("gross");
   const [touchStart, setTouchStart] = useState<number | null>(null);
 
   const courseHoles = useMemo(
@@ -95,6 +96,19 @@ export default function LeaderboardPage() {
     });
   }, [entries, viewMode]);
 
+  // Compute skins data for the skins view
+  const skinsData = useMemo(() => {
+    if (!data) return null;
+    const playerIds = (data.players || []).map((p) => p.id);
+    const scoresMapped = allScores.map((s) => ({
+      playerId: s.playerId,
+      hole: s.hole,
+      strokes: s.strokes,
+    }));
+    const skinsRule = (data.tournament.skinsRule || "carry_over") as SkinsRule;
+    return computeSkins(scoresMapped, playerIds, data.tournament.numHoles, "split_among_winners", skinsRule);
+  }, [data, allScores]);
+
   function formatToPar(toPar: number): string {
     if (toPar === 0) return "E";
     if (toPar > 0) return `+${toPar}`;
@@ -142,7 +156,13 @@ export default function LeaderboardPage() {
         if (touchStart === null) return;
         const diff = touchStart - e.changedTouches[0].clientX;
         if (Math.abs(diff) > 50) {
-          setViewMode(diff > 0 ? "net" : "gross");
+          const views: ("gross" | "net" | "skins")[] = ["gross", "net", "skins"];
+          const idx = views.indexOf(viewMode);
+          if (diff > 0) {
+            setViewMode(views[Math.min(idx + 1, views.length - 1)]);
+          } else {
+            setViewMode(views[Math.max(idx - 1, 0)]);
+          }
         }
         setTouchStart(null);
       }}
@@ -168,10 +188,160 @@ export default function LeaderboardPage() {
           >
             Net
           </button>
+          <button
+            onClick={() => setViewMode("skins")}
+            className={cn(
+              "flex-1 py-1.5 text-sm font-semibold rounded-md transition-colors",
+              viewMode === "skins" ? "bg-[#006747] text-white" : "text-[#006747]/60"
+            )}
+          >
+            Skins
+          </button>
         </div>
       </div>
 
-      {sortedEntries.length === 0 ? (
+      {viewMode === "skins" ? (
+        /* Skins Scorecard View */
+        <div className="overflow-x-auto">
+          {sortedEntries.length === 0 ? (
+            <div className="px-4 py-12 text-center">
+              <p className="text-[#006747]/50">No scores yet.</p>
+            </div>
+          ) : (
+            <table className="text-[10px] border-collapse min-w-[600px] w-full">
+              <thead>
+                {/* Hole numbers */}
+                <tr className="bg-[#006747] text-white">
+                  <th className="py-1 px-1 text-left font-bold sticky left-0 bg-[#006747] z-10 w-8">Pos</th>
+                  <th className="py-1 px-1 text-left font-bold sticky left-[32px] bg-[#006747] z-10 min-w-[70px]">Player</th>
+                  {courseHoles.slice(0, 9).map((h) => (
+                    <th key={h.hole} className="py-1 w-5 text-center font-bold">{h.hole}</th>
+                  ))}
+                  <th className="py-1 w-6 text-center font-bold border-l border-white/20">Out</th>
+                  {courseHoles.slice(9, 18).map((h) => (
+                    <th key={h.hole} className="py-1 w-5 text-center font-bold">{h.hole}</th>
+                  ))}
+                  <th className="py-1 w-6 text-center font-bold border-l border-white/20">In</th>
+                  <th className="py-1 w-7 text-center font-bold border-l border-white/20">Tot</th>
+                  <th className="py-1 w-6 text-center font-bold">Thru</th>
+                  <th className="py-1 w-7 text-center font-bold">+/-</th>
+                </tr>
+                {/* Par row */}
+                <tr className="bg-[#f2f7f4] text-[#006747]">
+                  <td className="py-1 px-1 sticky left-0 bg-[#f2f7f4] z-10"></td>
+                  <td className="py-1 px-1 font-bold sticky left-[32px] bg-[#f2f7f4] z-10">Par</td>
+                  {courseHoles.slice(0, 9).map((h) => (
+                    <td key={h.hole} className="py-1 text-center font-semibold">{h.par}</td>
+                  ))}
+                  <td className="py-1 text-center font-bold border-l border-[#d4e4db]">
+                    {courseHoles.slice(0, 9).reduce((s, h) => s + h.par, 0)}
+                  </td>
+                  {courseHoles.slice(9, 18).map((h) => (
+                    <td key={h.hole} className="py-1 text-center font-semibold">{h.par}</td>
+                  ))}
+                  <td className="py-1 text-center font-bold border-l border-[#d4e4db]">
+                    {courseHoles.slice(9, 18).reduce((s, h) => s + h.par, 0)}
+                  </td>
+                  <td className="py-1 text-center font-bold border-l border-[#d4e4db]">
+                    {courseHoles.reduce((s, h) => s + h.par, 0)}
+                  </td>
+                  <td className="py-1"></td>
+                  <td className="py-1"></td>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedEntries.map((entry, idx) => {
+                  const rank = getRank(sortedEntries, idx);
+                  const holeScores = getPlayerHoleScores(entry.playerId);
+                  const front = holeScores.slice(0, 9);
+                  const back = holeScores.slice(9, 18);
+                  const frontTotal = front.filter((h) => h.strokes !== null).reduce((s, h) => s + (h.strokes || 0), 0);
+                  const backTotal = back.filter((h) => h.strokes !== null).reduce((s, h) => s + (h.strokes || 0), 0);
+
+                  return (
+                    <tr
+                      key={entry.playerId}
+                      className={cn(
+                        "border-b border-[#d4e4db]/50",
+                        idx % 2 === 0 ? "bg-white" : "bg-[#f2f7f4]"
+                      )}
+                    >
+                      <td className={cn("py-1.5 px-1 font-bold text-[#006747] sticky left-0 z-10", idx % 2 === 0 ? "bg-white" : "bg-[#f2f7f4]")}>
+                        {rank}
+                      </td>
+                      <td className={cn("py-1.5 px-1 font-semibold text-[#006747] truncate max-w-[70px] sticky left-[32px] z-10", idx % 2 === 0 ? "bg-white" : "bg-[#f2f7f4]")}>
+                        {entry.nickname || entry.name}
+                      </td>
+                      {/* Front 9 */}
+                      {front.map((h) => {
+                        const skinWinner = skinsData?.results.find(
+                          (r) => r.hole === h.hole && r.winnerId === entry.playerId && r.skinsValue > 0
+                        );
+                        return (
+                          <td key={h.hole} className="py-1 text-center">
+                            {h.strokes !== null ? (
+                              <span className={cn(
+                                "inline-block min-w-[14px] text-center font-bold",
+                                skinWinner
+                                  ? "bg-[#006747] text-white rounded-sm px-0.5"
+                                  : "text-[#1a3c2a]"
+                              )}>
+                                {h.strokes}
+                              </span>
+                            ) : (
+                              <span className="text-[#ccc]">-</span>
+                            )}
+                          </td>
+                        );
+                      })}
+                      <td className="py-1 text-center font-bold text-[#006747] border-l border-[#d4e4db]">
+                        {frontTotal || "-"}
+                      </td>
+                      {/* Back 9 */}
+                      {back.map((h) => {
+                        const skinWinner = skinsData?.results.find(
+                          (r) => r.hole === h.hole && r.winnerId === entry.playerId && r.skinsValue > 0
+                        );
+                        return (
+                          <td key={h.hole} className="py-1 text-center">
+                            {h.strokes !== null ? (
+                              <span className={cn(
+                                "inline-block min-w-[14px] text-center font-bold",
+                                skinWinner
+                                  ? "bg-[#006747] text-white rounded-sm px-0.5"
+                                  : "text-[#1a3c2a]"
+                              )}>
+                                {h.strokes}
+                              </span>
+                            ) : (
+                              <span className="text-[#ccc]">-</span>
+                            )}
+                          </td>
+                        );
+                      })}
+                      <td className="py-1 text-center font-bold text-[#006747] border-l border-[#d4e4db]">
+                        {backTotal || "-"}
+                      </td>
+                      <td className="py-1 text-center font-bold text-[#006747] border-l border-[#d4e4db]">
+                        {entry.totalStrokes || "-"}
+                      </td>
+                      <td className="py-1 text-center text-[#006747]/70">
+                        {entry.holesCompleted || "-"}
+                      </td>
+                      <td className={cn(
+                        "py-1 text-center font-bold",
+                        entry.toPar < 0 ? "text-red-600" : entry.toPar > 0 ? "text-[#333]" : "text-[#006747]"
+                      )}>
+                        {entry.holesCompleted > 0 ? formatToPar(entry.toPar) : "-"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+      ) : sortedEntries.length === 0 ? (
         <div className="px-4 py-12 text-center">
           <p className="text-[#006747]/50">No scores yet. Start playing!</p>
         </div>
