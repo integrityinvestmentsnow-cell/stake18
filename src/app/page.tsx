@@ -36,9 +36,9 @@ export default function Home() {
     <main className="flex-1 px-4 py-12">
       {/* Hero */}
       <div className="text-center mb-10">
-        <h1 className="text-5xl sm:text-6xl font-bold tracking-tight mb-3">
-          <span className="text-[#006747]">Stake</span>
-          <span className="text-[#1a3c2a]">18</span>
+        <h1 className="text-4xl sm:text-5xl font-bold tracking-tight mb-3">
+          <span className="text-[#006747]">Stake18</span>
+          <span className="text-[#1a3c2a] text-2xl sm:text-3xl">golf.com</span>
         </h1>
         <p className="text-lg text-muted-foreground max-w-md mx-auto">
           Live golf skins with your crew. Score, track, and settle up — all
