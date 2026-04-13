@@ -36,11 +36,10 @@ export default function Home() {
     <main className="flex-1 px-4 py-12">
       {/* Hero */}
       <div className="text-center mb-10">
-        <img
-          src="/logo.png"
-          alt="Stake18"
-          className="h-20 sm:h-24 mx-auto mb-4 mix-blend-multiply"
-        />
+        <h1 className="text-5xl sm:text-6xl font-bold tracking-tight mb-3">
+          <span className="text-[#006747]">Stake</span>
+          <span className="text-[#1a3c2a]">18</span>
+        </h1>
         <p className="text-lg text-muted-foreground max-w-md mx-auto">
           Live golf skins with your crew. Score, track, and settle up — all
           from your phone.
