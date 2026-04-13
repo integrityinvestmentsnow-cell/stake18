@@ -40,6 +40,7 @@ export default function FeedPage() {
   const [tournamentStatus, setTournamentStatus] = useState("");
   const [loading, setLoading] = useState(true);
   const [justReacted, setJustReacted] = useState<string | null>(null);
+  const [openPickerKey, setOpenPickerKey] = useState<string | null>(null);
 
   const fetchFeed = useCallback(async () => {
     const res = await fetch(`/api/t/${id}/feed`);
@@ -170,57 +171,81 @@ export default function FeedPage() {
           <div className="space-y-2">
             {highlights.map((highlight, i) => {
               const holeCounts = getReactionsForHole(highlight.hole);
-              const totalReactions = Object.values(holeCounts).reduce((a, b) => a + b, 0);
+              const hasReactions = Object.values(holeCounts).some((c) => c > 0);
+              const cardKey = `${highlight.hole}-${highlight.type}-${i}`;
+              const pickerOpen = openPickerKey === cardKey;
 
               return (
-                <Card
-                  key={`${highlight.hole}-${highlight.type}-${i}`}
-                  className="border-[#d4e4db] overflow-hidden"
-                >
-                  <CardContent className="py-0 px-0">
-                    {/* Highlight content */}
-                    <div className="flex items-start gap-3 px-4 py-3">
-                      <span className="text-2xl flex-shrink-0">{highlight.emoji}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-[#1a3c2a]">{highlight.text}</p>
-                        <p className="text-[10px] text-[#006747]/40 mt-1">
-                          {highlight.groupName}
-                        </p>
+                <div key={cardKey} className="relative">
+                  <Card
+                    className="border-[#d4e4db]"
+                    onClick={() => {
+                      if (pickerOpen) {
+                        setOpenPickerKey(null);
+                      } else {
+                        setOpenPickerKey(cardKey);
+                      }
+                    }}
+                  >
+                    <CardContent className="px-4 py-3">
+                      <div className="flex items-start gap-3">
+                        <span className="text-2xl flex-shrink-0">{highlight.emoji}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-[#1a3c2a]">{highlight.text}</p>
+                          <p className="text-[10px] text-[#006747]/40 mt-1">
+                            {highlight.groupName}
+                          </p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* iMessage-style reaction bubbles — only show if reactions exist */}
+                  {hasReactions && (
+                    <div className="flex gap-1 mt-[-8px] ml-12 relative z-10">
+                      {REACTION_EMOJIS.filter((e) => holeCounts[e] > 0).map((emoji) => (
+                        <span
+                          key={emoji}
+                          className="inline-flex items-center gap-0.5 bg-white border border-[#d4e4db] rounded-full px-1.5 py-0.5 text-xs shadow-sm"
+                        >
+                          <span>{emoji}</span>
+                          {holeCounts[emoji] > 1 && (
+                            <span className="text-[9px] font-semibold text-[#006747]">
+                              {holeCounts[emoji]}
+                            </span>
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Emoji picker — shows on tap */}
+                  {pickerOpen && (
+                    <div className="flex justify-center mt-1 mb-1">
+                      <div className="inline-flex items-center gap-1 bg-white border border-[#d4e4db] rounded-full px-2 py-1.5 shadow-lg">
+                        {REACTION_EMOJIS.map((emoji) => {
+                          const wasJustTapped = justReacted === `${highlight.hole}-${emoji}`;
+                          return (
+                            <button
+                              key={emoji}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                sendReaction(highlight.hole, emoji);
+                                setOpenPickerKey(null);
+                              }}
+                              className={cn(
+                                "w-9 h-9 rounded-full flex items-center justify-center text-xl hover:bg-[#f2f7f4] active:scale-125 transition-all",
+                                wasJustTapped && "bg-[#006747]/10 scale-125"
+                              )}
+                            >
+                              {emoji}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
-
-                    {/* Quick Reactions */}
-                    <div className="flex items-center border-t border-[#d4e4db]/50 bg-[#f2f7f4]/50">
-                      {REACTION_EMOJIS.map((emoji) => {
-                        const count = holeCounts[emoji] || 0;
-                        const wasJustTapped = justReacted === `${highlight.hole}-${emoji}`;
-
-                        return (
-                          <button
-                            key={emoji}
-                            onClick={() => sendReaction(highlight.hole, emoji)}
-                            className={cn(
-                              "flex-1 flex items-center justify-center gap-1 py-2 transition-all active:scale-110 border-r border-[#d4e4db]/30 last:border-r-0",
-                              wasJustTapped && "bg-[#006747]/10 scale-110"
-                            )}
-                          >
-                            <span className={cn(
-                              "text-base transition-transform",
-                              wasJustTapped && "animate-bounce"
-                            )}>
-                              {emoji}
-                            </span>
-                            {count > 0 && (
-                              <span className="text-[10px] font-semibold text-[#006747]">
-                                {count}
-                              </span>
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </CardContent>
-                </Card>
+                  )}
+                </div>
               );
             })}
           </div>
