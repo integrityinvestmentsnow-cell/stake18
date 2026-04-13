@@ -182,7 +182,7 @@ export default function Home() {
             },
             {
               name: "Settlement",
-              desc: "One-tap Venmo & Zelle links — who owes who, instantly",
+              desc: "One-tap Venmo, Zelle & e-Transfer links — who owes who, instantly",
               icon: "💸",
             },
             {
