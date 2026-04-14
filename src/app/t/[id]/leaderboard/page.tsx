@@ -33,6 +33,23 @@ export default function LeaderboardPage() {
   const [viewMode, setViewMode] = useState<"gross" | "net" | "skins">("gross");
   const [touchStart, setTouchStart] = useState<number | null>(null);
 
+  const leaderboardStyle = data?.tournament.leaderboardStyle || "modern";
+
+  function displayName(entry: { name: string; nickname: string | null }): string {
+    if (leaderboardStyle === "classical") {
+      // First initial + last name (e.g. "S. Huntington")
+      const parts = entry.name.trim().split(/\s+/);
+      if (parts.length >= 2) {
+        const firstName = parts[0];
+        const lastName = parts.slice(1).join(" ");
+        return `${firstName[0]}. ${lastName}`;
+      }
+      return entry.name;
+    }
+    // Modern: nickname or first name
+    return entry.nickname || entry.name;
+  }
+
   const courseHoles = useMemo(
     () =>
       (data?.courseHoles || [])
@@ -270,7 +287,7 @@ export default function LeaderboardPage() {
                         {rank}
                       </td>
                       <td className={cn("py-1.5 px-1 font-semibold text-[#006747] truncate max-w-[70px] sticky left-[32px] z-10", idx % 2 === 0 ? "bg-white" : "bg-[#f2f7f4]")}>
-                        {entry.nickname || entry.name}
+                        {displayName(entry)}
                       </td>
                       {/* Front 9 */}
                       {front.map((h) => {
@@ -379,7 +396,7 @@ export default function LeaderboardPage() {
               >
                 <span className="py-2.5 text-center text-sm font-semibold text-[#006747]">{rank}</span>
                 <span className="py-2.5 pl-2 text-sm font-semibold text-[#006747] truncate">
-                  {entry.nickname || entry.name}
+                  {displayName(entry)}
                 </span>
                 {viewMode === "net" && (
                   <span className="py-2.5 text-center text-xs text-[#006747]/50">{entry.handicap}</span>
@@ -422,7 +439,7 @@ export default function LeaderboardPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">{selectedPlayer.avatarEmoji}</span>
-                  <span className="font-bold text-[#006747]">{selectedPlayer.nickname || selectedPlayer.name}</span>
+                  <span className="font-bold text-[#006747]">{displayName(selectedPlayer)}</span>
                 </div>
                 <span className={cn("font-bold text-sm", selectedPlayer.toPar < 0 ? "text-red-600" : selectedPlayer.toPar > 0 ? "text-[#333]" : "text-[#006747]")}>
                   {selectedPlayer.holesCompleted > 0 ? formatToPar(selectedPlayer.toPar) : ""}

@@ -15,6 +15,7 @@ interface TournamentData {
     skinsRule: string;
     status: string;
     pin: string | null;
+    leaderboardStyle: string;
   };
   players: {
     id: number;
@@ -105,12 +106,16 @@ export function TournamentProvider({
       )
       .subscribe();
 
+    // Poll tournament data every 30 seconds for admin setting changes
+    const dataPoll = setInterval(() => refreshData(), 30000);
+
     // Fallback polling every 10 seconds in case realtime doesn't fire
     const poll = setInterval(() => refreshScores(), 10000);
 
     return () => {
       supabase.removeChannel(channel);
       clearInterval(poll);
+      clearInterval(dataPoll);
     };
   }, [tournamentId, refreshData, refreshScores]);
 

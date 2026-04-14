@@ -60,6 +60,7 @@ export async function GET(
       skinsRule: tournament.skins_rule || "carry_over",
       pin: tournament.pin || null,
       status: tournament.status,
+      leaderboardStyle: tournament.leaderboard_style || "modern",
       createdAt: tournament.created_at,
     },
     players: (players || []).map((p) => ({

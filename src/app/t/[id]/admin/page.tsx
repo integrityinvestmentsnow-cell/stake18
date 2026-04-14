@@ -48,6 +48,7 @@ export default function AdminPage() {
   const [status, setStatus] = useState("setup");
   const [tournamentPin, setTournamentPin] = useState("");
   const [skinsRule, setSkinsRule] = useState<"carry_over" | "no_carry">("carry_over");
+  const [leaderboardStyle, setLeaderboardStyle] = useState<"modern" | "classical">("modern");
   const [loading, setLoading] = useState(true);
   const [isOwner, setIsOwner] = useState(false);
 
@@ -86,6 +87,7 @@ export default function AdminPage() {
       setStatus(data.tournament.status);
       setTournamentPin(data.tournament.pin || "");
       setSkinsRule(data.tournament.skinsRule || "carry_over");
+      setLeaderboardStyle(data.tournament.leaderboardStyle || "modern");
 
       const gpMap: Record<number, number[]> = {};
       for (const gp of data.groupPlayers) {
@@ -484,6 +486,45 @@ export default function AdminPage() {
             </Card>
           ))
         )}
+      </div>
+
+      {/* Leaderboard Style */}
+      <div className="space-y-3">
+        <h3 className="font-semibold">Leaderboard Style</h3>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={async () => {
+              setLeaderboardStyle("classical");
+              await adminAction({ action: "update_leaderboard_style", leaderboardStyle: "classical" });
+            }}
+            className={`p-3 rounded-lg border text-left transition-colors ${
+              leaderboardStyle === "classical"
+                ? "border-[#006747] bg-[#006747]/5"
+                : "border-border bg-background hover:border-[#006747]/30"
+            }`}
+          >
+            <p className="font-semibold text-sm">Classical</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              First initial + last name
+            </p>
+          </button>
+          <button
+            onClick={async () => {
+              setLeaderboardStyle("modern");
+              await adminAction({ action: "update_leaderboard_style", leaderboardStyle: "modern" });
+            }}
+            className={`p-3 rounded-lg border text-left transition-colors ${
+              leaderboardStyle === "modern"
+                ? "border-[#006747] bg-[#006747]/5"
+                : "border-border bg-background hover:border-[#006747]/30"
+            }`}
+          >
+            <p className="font-semibold text-sm">Modern</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              Nicknames
+            </p>
+          </button>
+        </div>
       </div>
 
       {/* Skins Rule */}

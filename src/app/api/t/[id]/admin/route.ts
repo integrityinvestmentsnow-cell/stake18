@@ -167,6 +167,15 @@ export async function POST(
       return NextResponse.json({ success: true });
     }
 
+    case "update_leaderboard_style": {
+      const { leaderboardStyle } = body;
+      await supabase
+        .from("tournaments")
+        .update({ leaderboard_style: leaderboardStyle })
+        .eq("id", id);
+      return NextResponse.json({ success: true });
+    }
+
     case "update_skins_rule": {
       const { skinsRule } = body;
       await supabase
