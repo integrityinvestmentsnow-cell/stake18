@@ -39,16 +39,24 @@ export default function JoinPage() {
     setLoading(true);
     setError("");
 
-    const res = await fetch(`/api/join?pin=${pin}`);
-    if (!res.ok) {
-      setError("Invalid PIN. Please try again.");
-      setLoading(false);
-      return;
-    }
+    try {
+      const res = await fetch(`/api/join?pin=${pin}`, {
+        credentials: "same-origin",
+        redirect: "follow",
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        setError(errData.error || "Invalid PIN. Please try again.");
+        setLoading(false);
+        return;
+      }
 
-    const data = await res.json();
-    setTournament(data.tournament);
-    setPlayers(data.players);
+      const data = await res.json();
+      setTournament(data.tournament);
+      setPlayers(data.players);
+    } catch (err) {
+      setError("Connection error. Please try again.");
+    }
     setLoading(false);
   }
 
@@ -74,6 +82,7 @@ export default function JoinPage() {
     const res = await fetch("/api/join", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
       body: JSON.stringify({
         tournamentId: tournament.id,
         playerIds: selectedPlayerIds,
