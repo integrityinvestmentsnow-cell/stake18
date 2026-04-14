@@ -126,6 +126,29 @@ export default function LeaderboardPage() {
     return computeSkins(scoresMapped, playerIds, data.tournament.numHoles, "split_among_winners", skinsRule);
   }, [data, allScores]);
 
+  // Compute provisional skins — holes where not all players have scored
+  // but one player currently has the outright lowest score
+  const provisionalSkins = useMemo(() => {
+    if (!data) return new Map<string, boolean>();
+    const playerIds = (data.players || []).map((p) => p.id);
+    const totalPlayers = playerIds.length;
+    const result = new Map<string, boolean>(); // key: "hole-playerId"
+
+    for (let hole = 1; hole <= (data.tournament.numHoles || 18); hole++) {
+      const holeScores = allScores.filter((s) => s.hole === hole);
+      // Only compute provisional if some but not all players have scored
+      if (holeScores.length > 0 && holeScores.length < totalPlayers) {
+        const minStrokes = Math.min(...holeScores.map((s) => s.strokes));
+        const playersWithMin = holeScores.filter((s) => s.strokes === minStrokes);
+        // Only one player has the lowest — they provisionally have the skin
+        if (playersWithMin.length === 1) {
+          result.set(`${hole}-${playersWithMin[0].playerId}`, true);
+        }
+      }
+    }
+    return result;
+  }, [data, allScores]);
+
   function formatToPar(toPar: number): string {
     if (toPar === 0) return "E";
     if (toPar > 0) return `+${toPar}`;
@@ -294,14 +317,17 @@ export default function LeaderboardPage() {
                         const skinWinner = skinsData?.results.find(
                           (r) => r.hole === h.hole && r.winnerId === entry.playerId && r.skinsValue > 0
                         );
+                        const isProvisional = !skinWinner && provisionalSkins.get(`${h.hole}-${entry.playerId}`);
                         return (
                           <td key={h.hole} className="py-1 text-center">
                             {h.strokes !== null ? (
                               <span className={cn(
-                                "inline-block min-w-[14px] text-center font-bold",
+                                "inline-block min-w-[14px] text-center font-bold rounded-sm px-0.5",
                                 skinWinner
-                                  ? "bg-[#006747] text-white rounded-sm px-0.5"
-                                  : "text-[#1a3c2a]"
+                                  ? "bg-[#006747] text-white"
+                                  : isProvisional
+                                    ? "bg-[#006747]/20 text-[#006747]"
+                                    : "text-[#1a3c2a]"
                               )}>
                                 {h.strokes}
                               </span>
@@ -319,14 +345,17 @@ export default function LeaderboardPage() {
                         const skinWinner = skinsData?.results.find(
                           (r) => r.hole === h.hole && r.winnerId === entry.playerId && r.skinsValue > 0
                         );
+                        const isProvisional = !skinWinner && provisionalSkins.get(`${h.hole}-${entry.playerId}`);
                         return (
                           <td key={h.hole} className="py-1 text-center">
                             {h.strokes !== null ? (
                               <span className={cn(
-                                "inline-block min-w-[14px] text-center font-bold",
+                                "inline-block min-w-[14px] text-center font-bold rounded-sm px-0.5",
                                 skinWinner
-                                  ? "bg-[#006747] text-white rounded-sm px-0.5"
-                                  : "text-[#1a3c2a]"
+                                  ? "bg-[#006747] text-white"
+                                  : isProvisional
+                                    ? "bg-[#006747]/20 text-[#006747]"
+                                    : "text-[#1a3c2a]"
                               )}>
                                 {h.strokes}
                               </span>
