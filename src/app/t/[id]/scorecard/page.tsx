@@ -42,7 +42,18 @@ export default function ScorecardPage() {
   const [scores, setScores] = useState<Score[]>([]);
   const [courseHoles, setCourseHoles] = useState<CourseHole[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
-  const [currentHole, setCurrentHole] = useState(1);
+  const [currentHole, setCurrentHoleState] = useState(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem(`stake18-current-hole-${id}`);
+      return saved ? parseInt(saved) : 1;
+    }
+    return 1;
+  });
+
+  function setCurrentHole(hole: number) {
+    setCurrentHoleState(hole);
+    localStorage.setItem(`stake18-current-hole-${id}`, String(hole));
+  }
   const [holeScores, setHoleScores] = useState<Record<number, number>>({});
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
