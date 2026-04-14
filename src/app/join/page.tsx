@@ -92,7 +92,6 @@ export default function JoinPage() {
 
     if (res.ok) {
       const group = await res.json();
-      // Store the scorer group + skins group for "My Group" tab
       localStorage.setItem(
         `stake18-my-group-${tournament.id}`,
         JSON.stringify({
@@ -103,6 +102,9 @@ export default function JoinPage() {
       );
       localStorage.setItem(`stake18-group-${tournament.id}`, String(group.groupId));
       router.push(`/t/${tournament.id}/scorecard`);
+    } else {
+      const errData = await res.json().catch(() => ({}));
+      setError(errData.error || "Failed to create group. Please try again.");
     }
 
     setSubmitting(false);
@@ -201,6 +203,10 @@ export default function JoinPage() {
           </button>
         ))}
       </div>
+
+      {error && (
+        <p className="text-sm text-red-600 text-center mb-2">{error}</p>
+      )}
 
       <Button
         onClick={createScorerGroup}

@@ -3,6 +3,14 @@ import type { NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 export async function proxy(request: NextRequest) {
+  // Redirect bare domain to www to avoid POST redirect issues
+  const host = request.headers.get("host") || "";
+  if (host === "stake18golf.com") {
+    const url = new URL(request.url);
+    url.host = "www.stake18golf.com";
+    return NextResponse.redirect(url, 308);
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
