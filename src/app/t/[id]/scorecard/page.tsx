@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { cn, scoreBgColor, scoreColor } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
 import { queueScore, flushQueue, getQueuedCount } from "@/lib/offline-queue";
+import { useTournament } from "@/lib/tournament-context";
 
 interface Player {
   id: number;
@@ -35,6 +36,8 @@ interface CourseHole {
 export default function ScorecardPage() {
   const params = useParams();
   const id = params.id as string;
+  const { data: tournamentData, userId } = useTournament();
+  const isAdmin = userId === tournamentData?.tournament.ownerId;
 
   const [players, setPlayers] = useState<Player[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
@@ -339,34 +342,35 @@ export default function ScorecardPage() {
               )}
             </div>
           </div>
-          <button
-            onClick={() => {
-              setEditPlayerIds(groupPlayers.map((p) => p.id));
-              setShowEditGroup(true);
-            }}
-            className="text-xs font-semibold text-[#006747] hover:underline"
-          >
-            Edit Group
-          </button>
+          {isAdmin && (
+            <button
+              onClick={() => {
+                setEditPlayerIds(groupPlayers.map((p) => p.id));
+                setShowEditGroup(true);
+              }}
+              className="text-xs font-semibold text-[#006747] hover:underline"
+            >
+              Edit Group
+            </button>
+          )}
         </div>
       )}
 
-      {/* Group Selector (if multiple groups exist) */}
-      {groups.length > 1 && (
-        <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
-          {groups.map((group) => (
-            <button
-              key={group.id}
-              onClick={() => selectGroup(group.id)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
-                selectedGroupId === group.id
-                  ? "bg-[#006747] text-white"
-                  : "bg-[#f2f7f4] border border-[#d4e4db] text-[#006747]"
-              }`}
-            >
-              {group.name}
-            </button>
-          ))}
+      {/* Admin-only group selector (dropdown) */}
+      {isAdmin && groups.length > 1 && (
+        <div className="mb-3">
+          <select
+            value={selectedGroupId ?? ""}
+            onChange={(e) => selectGroup(parseInt(e.target.value))}
+            className="w-full h-10 px-3 rounded-lg border border-[#d4e4db] bg-[#f2f7f4] text-sm font-medium text-[#006747] cursor-pointer"
+          >
+            {groups.map((group) => (
+              <option key={group.id} value={group.id}>
+                {group.name}
+              </option>
+            ))}
+          </select>
+          <p className="text-[10px] text-[#006747]/40 mt-1">Admin: switch groups to edit scores</p>
         </div>
       )}
 
