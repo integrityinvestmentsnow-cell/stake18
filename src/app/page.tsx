@@ -181,6 +181,11 @@ export default function Home() {
               icon: "⚔️",
             },
             {
+              name: "4 Pointer",
+              desc: "Auto triple press — the ultimate side bet game",
+              icon: "🎯",
+            },
+            {
               name: "Settlement",
               desc: "One-tap Venmo, Zelle & e-Transfer links — who owes who, instantly",
               icon: "💸",
