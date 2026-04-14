@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { formatCents } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
+import { useTournament } from "@/lib/tournament-context";
 
 interface SkinResult {
   hole: number;
@@ -35,6 +36,7 @@ interface GroupSkins {
 export default function SkinsPage() {
   const params = useParams();
   const id = params.id as string;
+  const { data: tournamentData, scores: allScores } = useTournament();
   const [groupsData, setGroupsData] = useState<GroupSkins[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -274,8 +276,58 @@ export default function SkinsPage() {
         <div className="px-4 mt-4">
           <button
             onClick={() => {
-              const lines = [`🏆 ${currentGroup.group.name} — Skins Results\n`];
+              const lines = [`🏆 ${tournamentData?.tournament.name || "Skins"} — Results\n`];
               lines.push(`💰 Total Pot: ${formatCents(currentGroup.totalPotCents)}\n`);
+
+              // Low Gross & Low Net
+              if (tournamentData) {
+                const courseHoles = tournamentData.courseHoles || [];
+                const numHoles = tournamentData.tournament.numHoles || 18;
+                const hasHoleHcps = courseHoles.some((h) => h.hcp);
+
+                const playerTotals = tournamentData.players
+                  .map((p) => {
+                    const pScores = allScores.filter((s) => s.playerId === p.id);
+                    const gross = pScores.reduce((s, sc) => s + sc.strokes, 0);
+                    const holesPlayed = pScores.length;
+
+                    let hcpStrokes = 0;
+                    if (hasHoleHcps && p.handicap > 0) {
+                      hcpStrokes = pScores.reduce((strokes, s) => {
+                        const holeHcp = courseHoles.find((h) => h.hole === s.hole)?.hcp;
+                        if (holeHcp && p.handicap >= holeHcp) {
+                          return strokes + (p.handicap >= holeHcp + 18 ? 2 : 1);
+                        }
+                        return strokes;
+                      }, 0);
+                    } else {
+                      hcpStrokes = Math.round((p.handicap * holesPlayed) / numHoles);
+                    }
+
+                    return {
+                      name: p.nickname || p.name,
+                      gross,
+                      net: gross - hcpStrokes,
+                      handicap: p.handicap,
+                      holesPlayed,
+                    };
+                  })
+                  .filter((p) => p.holesPlayed >= 9);
+
+                if (playerTotals.length > 0) {
+                  const lowGross = [...playerTotals].sort((a, b) => a.gross - b.gross)[0];
+                  lines.push(`🏆 Low Gross: ${lowGross.name} (${lowGross.gross})`);
+
+                  const hasHandicaps = playerTotals.some((p) => p.handicap > 0);
+                  if (hasHandicaps) {
+                    const lowNet = [...playerTotals].sort((a, b) => a.net - b.net)[0];
+                    lines.push(`🥇 Low Net: ${lowNet.name} (net ${lowNet.net})`);
+                  }
+                  lines.push("");
+                }
+              }
+
+              lines.push("Skins:");
               currentGroup.players
                 .sort((a, b) =>
                   (currentGroup.skinsSummary.playerSkins[b.id] || 0) -
