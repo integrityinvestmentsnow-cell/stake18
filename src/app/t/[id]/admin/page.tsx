@@ -259,9 +259,24 @@ export default function AdminPage() {
             <p className="text-4xl font-bold text-white tracking-[0.3em] mb-3">
               {tournamentPin}
             </p>
-            <p className="text-white/50 text-xs">
-              Share this PIN with your players
-            </p>
+            <button
+              onClick={() => {
+                const url = `${window.location.origin}/join/${tournamentPin}`;
+                if (navigator.share) {
+                  navigator.share({
+                    title: "Join my skins game!",
+                    text: `Join the skins game on Stake18! PIN: ${tournamentPin}`,
+                    url,
+                  });
+                } else {
+                  navigator.clipboard.writeText(url);
+                  alert("Link copied!");
+                }
+              }}
+              className="mt-2 px-4 py-2 bg-white/20 hover:bg-white/30 text-white text-sm font-semibold rounded-lg transition-colors"
+            >
+              Share Invite Link
+            </button>
           </CardContent>
         </Card>
       )}

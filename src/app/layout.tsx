@@ -12,6 +12,13 @@ export const metadata: Metadata = {
   title: "Stake18 Golf — Live Skins Scoring",
   description:
     "Live scoring, skins tracking, and golf betting with your group. No download required.",
+  manifest: "/manifest.json",
+  themeColor: "#006747",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "Stake18",
+  },
   openGraph: {
     title: "Stake18 Golf — Live Skins Scoring",
     description: "Live scoring, skins tracking, and golf betting with your group.",

@@ -269,6 +269,41 @@ export default function SkinsPage() {
         </div>
       )}
 
+      {/* Share Results */}
+      {currentGroup && currentGroup.skinsSummary.totalSkinsAwarded > 0 && (
+        <div className="px-4 mt-4">
+          <button
+            onClick={() => {
+              const lines = [`🏆 ${currentGroup.group.name} — Skins Results\n`];
+              lines.push(`💰 Total Pot: ${formatCents(currentGroup.totalPotCents)}\n`);
+              currentGroup.players
+                .sort((a, b) =>
+                  (currentGroup.skinsSummary.playerSkins[b.id] || 0) -
+                  (currentGroup.skinsSummary.playerSkins[a.id] || 0)
+                )
+                .forEach((p, i) => {
+                  const skins = currentGroup.skinsSummary.playerSkins[p.id] || 0;
+                  const payout = currentGroup.payouts[p.id] || 0;
+                  const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : "  ";
+                  lines.push(`${medal} ${p.nickname || p.name}: ${skins} skins — ${payout > 0 ? formatCents(payout) : "$0"}`);
+                });
+              lines.push(`\n⛳ stake18golf.com`);
+
+              const text = lines.join("\n");
+              if (navigator.share) {
+                navigator.share({ title: "Skins Results", text });
+              } else {
+                navigator.clipboard.writeText(text);
+                alert("Results copied!");
+              }
+            }}
+            className="w-full py-3 rounded-lg border border-[#006747] text-[#006747] font-semibold text-sm hover:bg-[#006747]/5 transition-colors"
+          >
+            Share Results
+          </button>
+        </div>
+      )}
+
       {/* Live indicator */}
       <div className="flex items-center justify-center gap-1.5 py-3 text-xs text-[#006747]/50">
         <span className="w-2 h-2 rounded-full bg-[#006747] animate-pulse" />
