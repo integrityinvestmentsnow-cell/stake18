@@ -10,7 +10,7 @@ const tabs = [
   { href: "leaderboard", label: "Leader Board", Icon: Trophy },
   { href: "scorecard", label: "My Group", Icon: Pencil },
   { href: "skins", label: "Skins", Icon: Users },
-  { href: "feed", label: "More", Icon: Menu },
+  { href: "feed", label: "Feed", Icon: Menu },
 ];
 
 export function BottomTabBar({ tournamentId }: { tournamentId: string }) {
