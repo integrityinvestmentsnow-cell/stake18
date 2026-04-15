@@ -20,7 +20,23 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Map snake_case columns to camelCase for frontend compatibility
+  // Get round counts per roster player
+  const rosterIds = (players || []).map((p) => p.id);
+  const { data: tournamentPlayers } = await supabase
+    .from("tournament_players")
+    .select("roster_player_id, tournament_id")
+    .in("roster_player_id", rosterIds.length > 0 ? rosterIds : [-1]);
+
+  const roundCounts: Record<number, number> = {};
+  const seenTournaments: Record<number, Set<string>> = {};
+  for (const tp of tournamentPlayers || []) {
+    if (!seenTournaments[tp.roster_player_id]) {
+      seenTournaments[tp.roster_player_id] = new Set();
+    }
+    seenTournaments[tp.roster_player_id].add(tp.tournament_id);
+    roundCounts[tp.roster_player_id] = seenTournaments[tp.roster_player_id].size;
+  }
+
   const mapped = (players || []).map((p) => ({
     id: p.id,
     ownerId: p.owner_id,
@@ -31,6 +47,7 @@ export async function GET() {
     avatarEmoji: p.avatar_emoji,
     claimedBy: p.claimed_by,
     createdAt: p.created_at,
+    rounds: roundCounts[p.id] || 0,
   }));
 
   return NextResponse.json(mapped);

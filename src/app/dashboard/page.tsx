@@ -25,6 +25,7 @@ interface RosterPlayer {
   email: string | null;
   handicap: number;
   avatarEmoji: string | null;
+  rounds?: number;
 }
 
 interface CourseHoleData {
@@ -883,11 +884,16 @@ export default function DashboardPage() {
                   </span>
                   <div className="flex-1">
                     <p className="font-medium">{player.name}</p>
-                    {player.nickname && (
-                      <p className="text-sm text-muted-foreground">
+                    {player.nickname ? (
+                      <p className="text-xs text-muted-foreground">
                         &quot;{player.nickname}&quot;
+                        {player.rounds ? ` · ${player.rounds} round${player.rounds > 1 ? "s" : ""}` : ""}
                       </p>
-                    )}
+                    ) : player.rounds ? (
+                      <p className="text-xs text-muted-foreground">
+                        {player.rounds} round{player.rounds > 1 ? "s" : ""}
+                      </p>
+                    ) : null}
                   </div>
                   <Badge variant="secondary">HCP {player.handicap}</Badge>
                 </CardContent>

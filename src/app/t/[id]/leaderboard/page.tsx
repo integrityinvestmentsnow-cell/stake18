@@ -14,6 +14,7 @@ import { computeSkins, type SkinsRule } from "@/lib/skins";
 
 interface LeaderboardEntry {
   playerId: number;
+  rosterPlayerId: number;
   name: string;
   nickname: string | null;
   avatarEmoji: string;
@@ -25,11 +26,18 @@ interface LeaderboardEntry {
   netToPar: number;
 }
 
+interface PlayerStats {
+  rounds: number;
+  totalSkins: number;
+  totalEarnings: number;
+}
+
 export default function LeaderboardPage() {
   const params = useParams();
   const id = params.id as string;
   const { data, scores: allScores, loading } = useTournament();
   const [selectedPlayer, setSelectedPlayer] = useState<LeaderboardEntry | null>(null);
+  const [playerStats, setPlayerStats] = useState<PlayerStats | null>(null);
   const [viewMode, setViewMode] = useState<"gross" | "net" | "skins">("gross");
   const [touchStart, setTouchStart] = useState<number | null>(null);
 
@@ -91,6 +99,7 @@ export default function LeaderboardPage() {
 
       return {
         playerId: player.id,
+        rosterPlayerId: player.rosterPlayerId,
         name: player.name,
         nickname: player.nickname,
         avatarEmoji: player.avatarEmoji || "🏌️",
@@ -414,7 +423,16 @@ export default function LeaderboardPage() {
             return (
               <div
                 key={entry.playerId}
-                onClick={() => setSelectedPlayer(entry)}
+                onClick={() => {
+                  setSelectedPlayer(entry);
+                  setPlayerStats(null);
+                  if (entry.rosterPlayerId) {
+                    fetch(`/api/roster/stats?id=${entry.rosterPlayerId}`)
+                      .then((r) => r.json())
+                      .then((s) => setPlayerStats(s))
+                      .catch(() => {});
+                  }
+                }}
                 className={cn(
                   "gap-0 items-center cursor-pointer active:bg-[#006747]/10 transition-colors border-b border-[#006747]/10",
                   isEven ? "bg-white" : "bg-[#f2f7f4]",
@@ -468,7 +486,14 @@ export default function LeaderboardPage() {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <span className="text-lg">{selectedPlayer.avatarEmoji}</span>
-                  <span className="font-bold text-[#006747]">{displayName(selectedPlayer)}</span>
+                  <div>
+                    <span className="font-bold text-[#006747]">{displayName(selectedPlayer)}</span>
+                    {playerStats && playerStats.rounds > 0 && (
+                      <p className="text-[10px] text-[#006747]/50">
+                        {playerStats.rounds} round{playerStats.rounds > 1 ? "s" : ""} · {playerStats.totalSkins} skins · ${Math.round(playerStats.totalEarnings / 100)}
+                      </p>
+                    )}
+                  </div>
                 </div>
                 <span className={cn("font-bold text-sm", selectedPlayer.toPar < 0 ? "text-red-600" : selectedPlayer.toPar > 0 ? "text-[#333]" : "text-[#006747]")}>
                   {selectedPlayer.holesCompleted > 0 ? formatToPar(selectedPlayer.toPar) : ""}
