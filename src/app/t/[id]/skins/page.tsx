@@ -395,6 +395,7 @@ export default function SkinsPage() {
 
               lines.push("Skins:");
               currentGroup.players
+                .filter((p) => (currentGroup.skinsSummary.playerSkins[p.id] || 0) > 0)
                 .sort((a, b) =>
                   (currentGroup.skinsSummary.playerSkins[b.id] || 0) -
                   (currentGroup.skinsSummary.playerSkins[a.id] || 0)
@@ -403,7 +404,7 @@ export default function SkinsPage() {
                   const skins = currentGroup.skinsSummary.playerSkins[p.id] || 0;
                   const payout = currentGroup.payouts[p.id] || 0;
                   const medal = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : "  ";
-                  lines.push(`${medal} ${p.nickname || p.name}: ${skins} skins — ${payout > 0 ? formatCents(payout) : "$0"}`);
+                  lines.push(`${medal} ${p.nickname || p.name}: ${skins} skins — ${formatCents(payout)}`);
                 });
               lines.push(`\n⛳ stake18golf.com`);
 
