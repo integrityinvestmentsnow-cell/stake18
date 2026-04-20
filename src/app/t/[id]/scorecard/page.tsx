@@ -613,7 +613,7 @@ export default function ScorecardPage() {
       {/* Edit Group Modal */}
       {showEditGroup && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-end justify-center">
-          <div className="w-full max-w-lg bg-white rounded-t-2xl p-4 pb-8 max-h-[80vh] overflow-y-auto">
+          <div className="w-full max-w-lg bg-white rounded-t-2xl p-4 pb-24 max-h-[85vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-bold text-[#006747]">Edit Group</h3>
               <button
