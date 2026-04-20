@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { createClient } from "@/lib/supabase/client";
+import { useTournament } from "@/lib/tournament-context";
 
 interface Player {
   id: number;
@@ -40,6 +41,7 @@ export default function AdminPage() {
   const params = useParams();
   const router = useRouter();
   const id = params.id as string;
+  const { scores: contextScores } = useTournament();
 
   const [players, setPlayers] = useState<Player[]>([]);
   const [existingGroups, setExistingGroups] = useState<Group[]>([]);
@@ -139,7 +141,11 @@ export default function AdminPage() {
   async function finalizeTournament() {
     await adminAction({ action: "finalize" });
     setStatus("finalized");
-    router.push(`/t/${id}/recap`);
+  }
+
+  async function reopenTournament() {
+    await adminAction({ action: "reopen" });
+    setStatus("active");
   }
 
   function toggleGroupPlayer(playerId: number) {
@@ -628,19 +634,52 @@ export default function AdminPage() {
             Start Tournament
           </Button>
         )}
-        {status === "active" && (
-          <Button
-            onClick={finalizeTournament}
-            variant="destructive"
-            className="w-full h-12"
-          >
-            Finalize Tournament
-          </Button>
-        )}
+        {status === "active" && (() => {
+          const numHoles = courseHoles.length || 18;
+          const minHoles = Math.max(1, Math.floor(numHoles / 2));
+          const activePlayers = players.filter((p) => {
+            const scoreCount = contextScores.filter((s) => s.playerId === p.id).length;
+            return scoreCount >= minHoles;
+          });
+          const allComplete = activePlayers.length > 0 &&
+            activePlayers.every((p) => contextScores.filter((s) => s.playerId === p.id).length >= numHoles);
+
+          return (
+            <div className="space-y-3">
+              {allComplete && (
+                <div className="bg-[#006747]/5 border border-[#006747]/20 rounded-lg p-3 text-center">
+                  <p className="text-sm text-[#006747] font-semibold">
+                    All scores are in! Ready to finalize.
+                  </p>
+                </div>
+              )}
+              <Button
+                onClick={finalizeTournament}
+                className={`w-full h-12 ${allComplete ? "bg-[#006747] hover:bg-[#005538]" : "bg-gray-400 hover:bg-gray-500"}`}
+              >
+                Finalize Tournament
+              </Button>
+            </div>
+          );
+        })()}
         {status === "finalized" && (
-          <p className="text-center text-muted-foreground">
-            Tournament finalized
-          </p>
+          <div className="space-y-3">
+            <div className="bg-[#006747]/5 border border-[#006747]/20 rounded-lg p-3 text-center">
+              <p className="text-sm text-[#006747] font-semibold">
+                Tournament finalized
+              </p>
+            </div>
+            <Button
+              onClick={reopenTournament}
+              variant="outline"
+              className="w-full h-10 text-[#006747] border-[#006747]"
+            >
+              Reopen Tournament
+            </Button>
+            <p className="text-[10px] text-muted-foreground text-center">
+              Reopen to fix scores, then finalize again
+            </p>
+          </div>
         )}
       </div>
 

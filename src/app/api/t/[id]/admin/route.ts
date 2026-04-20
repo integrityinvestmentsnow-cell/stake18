@@ -211,6 +211,14 @@ export async function POST(
       return NextResponse.json({ success: true });
     }
 
+    case "reopen": {
+      await supabase
+        .from("tournaments")
+        .update({ status: "active" })
+        .eq("id", id);
+      return NextResponse.json({ success: true });
+    }
+
     default:
       return NextResponse.json({ error: "Unknown action" }, { status: 400 });
   }
