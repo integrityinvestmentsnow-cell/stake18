@@ -177,46 +177,105 @@ export default function SkinsPage() {
               <span className="py-2 pl-3">Result</span>
               <span className="py-2 text-center">Skins</span>
             </div>
-            {currentGroup.skinsSummary.results
-              .filter((r) => r.skinsValue > 0 || r.carryover > 0)
-              .map((result, i) => (
-                <div
-                  key={result.hole}
-                  className={cn(
-                    "grid grid-cols-[48px_1fr_80px] items-center border-b border-[#d4e4db]/50",
-                    i % 2 === 0 ? "bg-white" : "bg-[#f2f7f4]"
-                  )}
-                >
-                  <span className="py-2.5 text-center text-sm font-bold text-[#006747]">
-                    {result.hole}
-                  </span>
-                  <span className="py-2.5 pl-3 text-sm">
-                    {result.winnerId ? (
-                      <span className="font-semibold text-[#006747]">
-                        {currentGroup.playerNames[result.winnerId]}
-                        {result.skinsValue > 1 && " 💰"}
-                      </span>
-                    ) : (
-                      <span className="text-[#006747]/50">Push</span>
+            {(() => {
+              const totalPlayers = currentGroup.players.length;
+              const numHoles = tournamentData?.tournament.numHoles || 18;
+              const holes = Array.from({ length: numHoles }, (_, i) => i + 1);
+
+              // Compute provisional winners for holes without confirmed results
+              const provisionalWinners: Record<number, { playerId: number; tied: boolean }> = {};
+              for (const hole of holes) {
+                const holeScores = allScores.filter((s) => s.hole === hole);
+                if (holeScores.length > 0 && holeScores.length < totalPlayers) {
+                  const minStrokes = Math.min(...holeScores.map((s) => s.strokes));
+                  const playersWithMin = holeScores.filter((s) => s.strokes === minStrokes);
+                  provisionalWinners[hole] = {
+                    playerId: playersWithMin[0].playerId,
+                    tied: playersWithMin.length > 1,
+                  };
+                }
+              }
+
+              return holes.map((hole, i) => {
+                const result = currentGroup.skinsSummary.results.find((r) => r.hole === hole);
+                const provisional = provisionalWinners[hole];
+                const holeScores = allScores.filter((s) => s.hole === hole);
+                const hasAnyScores = holeScores.length > 0;
+                const allScored = holeScores.length >= totalPlayers;
+
+                // Determine what to show
+                let displayName = "";
+                let isConfirmed = false;
+                let isProvisional = false;
+                let isPush = false;
+                let skinsDisplay = "";
+
+                if (result && result.winnerId && result.skinsValue > 0) {
+                  // Confirmed skin winner
+                  displayName = currentGroup.playerNames[result.winnerId] || "";
+                  isConfirmed = true;
+                  skinsDisplay = String(result.skinsValue);
+                } else if (result && !result.winnerId && allScored) {
+                  // Confirmed push
+                  isPush = true;
+                  skinsDisplay = result.carryover > 0 ? `→ ${result.carryover}` : "—";
+                } else if (provisional && !provisional.tied) {
+                  // Provisional leader
+                  displayName = currentGroup.playerNames[provisional.playerId] || "";
+                  isProvisional = true;
+                  skinsDisplay = "•";
+                } else if (provisional && provisional.tied) {
+                  // Provisional tie
+                  isPush = true;
+                  isProvisional = true;
+                  skinsDisplay = "—";
+                } else if (!hasAnyScores) {
+                  // No scores yet
+                  skinsDisplay = "—";
+                }
+
+                // Skip holes with nothing to show
+                if (!hasAnyScores && !isConfirmed) return null;
+
+                return (
+                  <div
+                    key={hole}
+                    className={cn(
+                      "grid grid-cols-[48px_1fr_80px] items-center border-b border-[#d4e4db]/50",
+                      i % 2 === 0 ? "bg-white" : "bg-[#f2f7f4]"
                     )}
-                  </span>
-                  <span className={cn(
-                    "py-2.5 text-center text-sm font-bold",
-                    result.winnerId ? "text-[#006747]" : "text-[#006747]/40"
-                  )}>
-                    {result.winnerId
-                      ? result.skinsValue
-                      : `→ ${result.carryover}`}
-                  </span>
-                </div>
-              ))}
-            {currentGroup.skinsSummary.results.filter(
-              (r) => r.skinsValue > 0 || r.carryover > 0
-            ).length === 0 && (
-              <div className="py-8 text-center text-sm text-[#006747]/40">
-                No skins awarded yet
-              </div>
-            )}
+                  >
+                    <span className="py-2.5 text-center text-sm font-bold text-[#006747]">
+                      {hole}
+                    </span>
+                    <span className="py-2.5 pl-3 text-sm">
+                      {displayName ? (
+                        <span className={cn(
+                          "font-semibold",
+                          isConfirmed ? "text-[#006747]" : "text-[#006747]/50"
+                        )}>
+                          {displayName}
+                          {isConfirmed && result && result.skinsValue > 1 && " 💰"}
+                          {isProvisional && " ·"}
+                        </span>
+                      ) : isPush ? (
+                        <span className="text-[#006747]/40">
+                          {allScored ? "Push" : "Tied"}
+                        </span>
+                      ) : (
+                        <span className="text-[#006747]/30">—</span>
+                      )}
+                    </span>
+                    <span className={cn(
+                      "py-2.5 text-center text-sm font-bold",
+                      isConfirmed ? "text-[#006747]" : "text-[#006747]/30"
+                    )}>
+                      {skinsDisplay}
+                    </span>
+                  </div>
+                );
+              }).filter(Boolean);
+            })()}
           </div>
 
           {/* Payout Summary */}
