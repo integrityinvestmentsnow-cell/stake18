@@ -125,7 +125,12 @@ export default function LeaderboardPage() {
   // Compute skins data for the skins view
   const skinsData = useMemo(() => {
     if (!data) return null;
-    const playerIds = (data.players || []).map((p) => p.id);
+    const skinsMinHoles = Math.max(1, Math.floor((data.tournament.numHoles || 18) / 2));
+    const playerIds = (data.players || []).filter((p) => {
+      const scoreCount = allScores.filter((s) => s.playerId === p.id).length;
+      return scoreCount >= skinsMinHoles;
+    }).map((p) => p.id);
+    if (playerIds.length === 0) return null;
     const scoresMapped = allScores.map((s) => ({
       playerId: s.playerId,
       hole: s.hole,
@@ -139,8 +144,13 @@ export default function LeaderboardPage() {
   // but one player currently has the outright lowest score
   const provisionalSkins = useMemo(() => {
     if (!data) return new Map<string, boolean>();
-    const playerIds = (data.players || []).map((p) => p.id);
-    const totalPlayers = playerIds.length;
+    // Only count players who have at least half the holes scored
+    const minHoles = Math.max(1, Math.floor((data.tournament.numHoles || 18) / 2));
+    const activePlayerIds = (data.players || []).filter((p) => {
+      const scoreCount = allScores.filter((s) => s.playerId === p.id).length;
+      return scoreCount >= minHoles;
+    }).map((p) => p.id);
+    const totalPlayers = activePlayerIds.length || (data.players || []).length;
     const result = new Map<string, boolean>(); // key: "hole-playerId"
 
     for (let hole = 1; hole <= (data.tournament.numHoles || 18); hole++) {

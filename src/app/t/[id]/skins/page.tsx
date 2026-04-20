@@ -178,7 +178,13 @@ export default function SkinsPage() {
               <span className="py-2 text-center">Skins</span>
             </div>
             {(() => {
-              const totalPlayers = currentGroup.players.length;
+              // Only count players who have at least half the holes scored
+              const minHoles = Math.max(1, Math.floor((tournamentData?.tournament.numHoles || 18) / 2));
+              const activePlayers = currentGroup.players.filter((p) => {
+                const scoreCount = allScores.filter((s) => s.playerId === p.id).length;
+                return scoreCount >= minHoles;
+              });
+              const totalPlayers = activePlayers.length || currentGroup.players.length;
               const numHoles = tournamentData?.tournament.numHoles || 18;
               const holes = Array.from({ length: numHoles }, (_, i) => i + 1);
 

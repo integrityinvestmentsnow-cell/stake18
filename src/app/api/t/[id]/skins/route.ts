@@ -34,8 +34,12 @@ export async function GET(
     .select("*")
     .eq("tournament_id", id);
 
-  // Skins is always ALL players together — one big game
-  const playerIds = (allPlayers || []).map((p) => p.id);
+  // Skins is all players who actually played — skip players with less than half the holes scored
+  const minHoles = Math.max(1, Math.floor(tournament.num_holes / 2));
+  const playerIds = (allPlayers || []).filter((p) => {
+    const scoreCount = (allScores || []).filter((s) => s.player_id === p.id).length;
+    return scoreCount >= minHoles;
+  }).map((p) => p.id);
 
   const allScoresMapped = (allScores || []).map((s) => ({
     playerId: s.player_id,
