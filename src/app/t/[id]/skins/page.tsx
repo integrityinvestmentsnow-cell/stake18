@@ -293,6 +293,7 @@ export default function SkinsPage() {
               <span className="py-2 text-center">Payout</span>
             </div>
             {currentGroup.players
+              .filter((p) => (currentGroup.skinsSummary.playerSkins[p.id] || 0) > 0)
               .sort(
                 (a, b) =>
                   (currentGroup.skinsSummary.playerSkins[b.id] || 0) -
