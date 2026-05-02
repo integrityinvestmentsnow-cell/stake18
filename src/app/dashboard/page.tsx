@@ -63,6 +63,8 @@ export default function DashboardPage() {
   const [showCreateTournament, setShowCreateTournament] = useState(false);
   const [showAddCourse, setShowAddCourse] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [quickAddName, setQuickAddName] = useState("");
+  const [quickAdding, setQuickAdding] = useState(false);
   const [editingPlayer, setEditingPlayer] = useState<RosterPlayer | null>(null);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
 
@@ -237,6 +239,29 @@ export default function DashboardPage() {
   }
 
   // ── Tournament helpers ──────────────────────────────────
+  async function quickAddPlayer() {
+    if (!quickAddName.trim() || quickAdding) return;
+    setQuickAdding(true);
+    const res = await fetch("/api/roster", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: quickAddName.trim(),
+        nickname: null,
+        email: null,
+        handicap: 0,
+        avatarEmoji: "🏌️",
+      }),
+    });
+    if (res.ok) {
+      const newPlayer = await res.json();
+      setRoster((prev) => [...prev, newPlayer]);
+      setSelectedPlayers((prev) => [...prev, newPlayer.id]);
+      setQuickAddName("");
+    }
+    setQuickAdding(false);
+  }
+
   function togglePlayer(id: number) {
     setSelectedPlayers((prev) =>
       prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
@@ -534,39 +559,51 @@ export default function DashboardPage() {
             {/* Player Selection */}
             <div className="space-y-2">
               <Label>Select Players ({selectedPlayers.length} selected)</Label>
-              {roster.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Add players to your roster first
-                </p>
-              ) : (
-                <div className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto">
-                  {roster.map((player) => (
-                    <button
-                      key={player.id}
-                      type="button"
-                      onClick={() => togglePlayer(player.id)}
-                      className={`flex items-center gap-3 p-3 rounded-lg border text-left transition-colors ${
-                        selectedPlayers.includes(player.id)
-                          ? "border-primary bg-primary/10"
-                          : "border-border bg-background hover:border-muted-foreground"
-                      }`}
-                    >
-                      <span className="text-xl">
-                        {player.avatarEmoji || "🏌️"}
-                      </span>
-                      <div className="flex-1">
-                        <p className="font-medium">{player.name}</p>
-                        {player.nickname && (
-                          <p className="text-xs text-muted-foreground">
-                            &quot;{player.nickname}&quot;
-                          </p>
-                        )}
-                      </div>
-                      <Badge variant="secondary">HCP {player.handicap}</Badge>
-                    </button>
-                  ))}
-                </div>
-              )}
+              <div className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto">
+                {roster.map((player) => (
+                  <button
+                    key={player.id}
+                    type="button"
+                    onClick={() => togglePlayer(player.id)}
+                    className={`flex items-center gap-3 p-3 rounded-lg border text-left transition-colors ${
+                      selectedPlayers.includes(player.id)
+                        ? "border-[#006747] bg-[#006747]/5"
+                        : "border-border bg-background hover:border-[#006747]/30"
+                    }`}
+                  >
+                    <span className="text-xl">
+                      {player.avatarEmoji || "🏌️"}
+                    </span>
+                    <div className="flex-1">
+                      <p className="font-medium">{player.name}</p>
+                      {player.nickname && (
+                        <p className="text-xs text-muted-foreground">
+                          &quot;{player.nickname}&quot;
+                        </p>
+                      )}
+                    </div>
+                    <Badge variant="secondary">HCP {player.handicap}</Badge>
+                  </button>
+                ))}
+              </div>
+              {/* Quick Add Player */}
+              <div className="flex gap-2">
+                <Input
+                  placeholder="New player name"
+                  value={quickAddName}
+                  onChange={(e) => setQuickAddName(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), quickAddPlayer())}
+                  className="bg-background flex-1"
+                />
+                <Button
+                  type="button"
+                  onClick={quickAddPlayer}
+                  disabled={!quickAddName.trim() || quickAdding}
+                  className="bg-[#006747] hover:bg-[#005538] px-4"
+                >
+                  {quickAdding ? "..." : "+ Add"}
+                </Button>
+              </div>
             </div>
 
             <Button

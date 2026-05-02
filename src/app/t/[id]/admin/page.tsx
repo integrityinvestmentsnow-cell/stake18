@@ -69,6 +69,8 @@ export default function AdminPage() {
   // Edit group
   const [editingGroup, setEditingGroup] = useState<Group | null>(null);
   const [editGroupName, setEditGroupName] = useState("");
+  const [quickAddName, setQuickAddName] = useState("");
+  const [quickAdding, setQuickAdding] = useState(false);
 
   const fetchData = useCallback(async () => {
     // Check if user is the owner
@@ -111,6 +113,31 @@ export default function AdminPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
+  }
+
+  async function quickAddPlayer() {
+    if (!quickAddName.trim() || quickAdding) return;
+    setQuickAdding(true);
+    // Add to roster first
+    const rosterRes = await fetch("/api/roster", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: quickAddName.trim(),
+        nickname: null,
+        email: null,
+        handicap: 0,
+        avatarEmoji: "🏌️",
+      }),
+    });
+    if (rosterRes.ok) {
+      const newRosterPlayer = await rosterRes.json();
+      // Add to tournament
+      await adminAction({ action: "add_player", rosterPlayerId: newRosterPlayer.id });
+      setQuickAddName("");
+      fetchData();
+    }
+    setQuickAdding(false);
   }
 
   async function createGroup(e: React.FormEvent) {
@@ -339,6 +366,24 @@ export default function AdminPage() {
               </CardContent>
             </Card>
           ))}
+        </div>
+        {/* Quick Add Player */}
+        <div className="flex gap-2">
+          <Input
+            placeholder="Add new player"
+            value={quickAddName}
+            onChange={(e) => setQuickAddName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), quickAddPlayer())}
+            className="bg-background flex-1"
+          />
+          <Button
+            type="button"
+            onClick={quickAddPlayer}
+            disabled={!quickAddName.trim() || quickAdding}
+            className="bg-[#006747] hover:bg-[#005538] px-4"
+          >
+            {quickAdding ? "..." : "+ Add"}
+          </Button>
         </div>
       </div>
 
