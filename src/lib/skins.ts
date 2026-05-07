@@ -25,7 +25,9 @@ export function computeSkins(
   playerIds: number[],
   numHoles: number = 18,
   unclaimedRule: "split_among_winners" = "split_among_winners",
-  skinsRule: SkinsRule = "carry_over"
+  skinsRule: SkinsRule = "carry_over",
+  holePars: Record<number, number> = {},
+  birdieOrBetter: boolean = false
 ): SkinsSummary {
   const results: SkinResult[] = [];
   const playerSkins: Record<number, number> = {};
@@ -51,7 +53,12 @@ export function computeSkins(
     const minStrokes = Math.min(...holeScores.map((s) => s.strokes));
     const playersWithMin = holeScores.filter((s) => s.strokes === minStrokes);
 
-    if (playersWithMin.length === 1) {
+    // "Birdie or better to win" — par or worse can't win a skin; treat as a tie
+    const par = holePars[hole];
+    const blockedByBirdieRule =
+      birdieOrBetter && typeof par === "number" && minStrokes >= par;
+
+    if (playersWithMin.length === 1 && !blockedByBirdieRule) {
       // One winner — they take the skins
       const winnerId = playersWithMin[0].playerId;
       playerSkins[winnerId] += skinsAtStake;

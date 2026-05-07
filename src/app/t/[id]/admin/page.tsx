@@ -50,6 +50,7 @@ export default function AdminPage() {
   const [status, setStatus] = useState("setup");
   const [tournamentPin, setTournamentPin] = useState("");
   const [skinsRule, setSkinsRule] = useState<"carry_over" | "no_carry">("carry_over");
+  const [birdieOrBetter, setBirdieOrBetter] = useState(false);
   const [leaderboardStyle, setLeaderboardStyle] = useState<"modern" | "classical">("modern");
   const [loading, setLoading] = useState(true);
   const [isOwner, setIsOwner] = useState(false);
@@ -91,6 +92,7 @@ export default function AdminPage() {
       setStatus(data.tournament.status);
       setTournamentPin(data.tournament.pin || "");
       setSkinsRule(data.tournament.skinsRule || "carry_over");
+      setBirdieOrBetter(data.tournament.birdieOrBetter === true);
       setLeaderboardStyle(data.tournament.leaderboardStyle || "modern");
 
       const gpMap: Record<number, number[]> = {};
@@ -628,6 +630,33 @@ export default function AdminPage() {
             <p className="text-[10px] text-muted-foreground mt-0.5">
               No one wins on a tie
             </p>
+          </button>
+        </div>
+        <div className="flex items-center justify-between pt-2">
+          <div className="pr-3">
+            <p className="text-sm font-medium">Birdie or better to win</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">
+              Pars can&apos;t win a skin — par or worse is treated as a tie
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={birdieOrBetter}
+            onClick={async () => {
+              const next = !birdieOrBetter;
+              setBirdieOrBetter(next);
+              await adminAction({ action: "update_birdie_or_better", birdieOrBetter: next });
+            }}
+            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+              birdieOrBetter ? "bg-[#006747]" : "bg-muted"
+            }`}
+          >
+            <span
+              className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                birdieOrBetter ? "translate-x-5" : "translate-x-0.5"
+              }`}
+            />
           </button>
         </div>
       </div>

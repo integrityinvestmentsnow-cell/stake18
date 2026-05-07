@@ -58,6 +58,7 @@ export async function GET(
       numHoles: tournament.num_holes,
       unclaimedRule: tournament.unclaimed_rule,
       skinsRule: tournament.skins_rule || "carry_over",
+      birdieOrBetter: tournament.birdie_or_better === true,
       pin: tournament.pin || null,
       status: tournament.status,
       leaderboardStyle: tournament.leaderboard_style || "modern",

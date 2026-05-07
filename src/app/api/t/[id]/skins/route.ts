@@ -47,12 +47,19 @@ export async function GET(
     strokes: s.strokes,
   }));
 
+  const holePars: Record<number, number> = {};
+  for (const h of holes || []) {
+    holePars[h.hole] = h.par;
+  }
+
   const skinsSummary = computeSkins(
     allScoresMapped,
     playerIds,
     tournament.num_holes,
     tournament.unclaimed_rule as "split_among_winners",
-    (tournament.skins_rule || "carry_over") as SkinsRule
+    (tournament.skins_rule || "carry_over") as SkinsRule,
+    holePars,
+    tournament.birdie_or_better === true
   );
 
   // Total pot = buy-in × all players in the tournament

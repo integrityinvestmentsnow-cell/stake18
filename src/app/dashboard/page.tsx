@@ -84,6 +84,7 @@ export default function DashboardPage() {
   const [selectedPlayers, setSelectedPlayers] = useState<number[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState<number | null>(null);
   const [skinsRule, setSkinsRule] = useState<"carry_over" | "no_carry">("carry_over");
+  const [birdieOrBetter, setBirdieOrBetter] = useState(false);
   const [tournamentLocation, setTournamentLocation] = useState("");
   const [isPublic, setIsPublic] = useState(true);
 
@@ -286,6 +287,7 @@ export default function DashboardPage() {
         courseId: selectedCourseId,
         courseHoles: selectedCourse?.holes,
         skinsRule,
+        birdieOrBetter,
         location: tournamentLocation || null,
         isPublic,
       }),
@@ -480,6 +482,31 @@ export default function DashboardPage() {
                   </p>
                 </button>
               </div>
+            </div>
+
+            {/* Birdie or better to win */}
+            <div className="flex items-center justify-between py-2">
+              <div className="pr-3">
+                <p className="text-sm font-medium">Birdie or better to win</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  Pars can&apos;t win a skin — par or worse is treated as a tie
+                </p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={birdieOrBetter}
+                onClick={() => setBirdieOrBetter((v) => !v)}
+                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+                  birdieOrBetter ? "bg-[#006747]" : "bg-muted"
+                }`}
+              >
+                <span
+                  className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                    birdieOrBetter ? "translate-x-5" : "translate-x-0.5"
+                  }`}
+                />
+              </button>
             </div>
 
             {/* Location */}

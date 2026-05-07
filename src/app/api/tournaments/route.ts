@@ -29,7 +29,7 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { name, date, buyInCents, numHoles, courseHoles: savedHoles, skinsRule, location, isPublic } = body;
+  const { name, date, buyInCents, numHoles, courseHoles: savedHoles, skinsRule, birdieOrBetter, location, isPublic } = body;
 
   const id = generateTournamentId();
   const holesCount = numHoles || 18;
@@ -43,6 +43,7 @@ export async function POST(request: Request) {
     buy_in_cents: buyInCents || 2000,
     num_holes: holesCount,
     skins_rule: skinsRule || "carry_over",
+    birdie_or_better: birdieOrBetter === true,
     pin,
     location: location || null,
     is_public: isPublic !== false,

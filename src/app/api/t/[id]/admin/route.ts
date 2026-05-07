@@ -185,6 +185,15 @@ export async function POST(
       return NextResponse.json({ success: true });
     }
 
+    case "update_birdie_or_better": {
+      const { birdieOrBetter } = body;
+      await supabase
+        .from("tournaments")
+        .update({ birdie_or_better: birdieOrBetter === true })
+        .eq("id", id);
+      return NextResponse.json({ success: true });
+    }
+
     case "update_par": {
       const { hole, par } = body;
       await supabase
