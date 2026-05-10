@@ -109,13 +109,26 @@ export function TournamentProvider({
     // Poll tournament data every 30 seconds for admin setting changes
     const dataPoll = setInterval(() => refreshData(), 30000);
 
-    // Fallback polling every 10 seconds in case realtime doesn't fire
-    const poll = setInterval(() => refreshScores(), 10000);
+    // Aggressive score polling — keeps the leaderboard near-instant even when
+    // the realtime websocket fails (common on iOS Safari and in-app browsers).
+    const poll = setInterval(() => refreshScores(), 3000);
+
+    // iOS suspends timers and websockets when a tab is backgrounded. When the
+    // user returns to the tab, force an immediate refresh so they see fresh
+    // scores without waiting for the next poll tick.
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        refreshScores();
+        refreshData();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
       supabase.removeChannel(channel);
       clearInterval(poll);
       clearInterval(dataPoll);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [tournamentId, refreshData, refreshScores]);
 
