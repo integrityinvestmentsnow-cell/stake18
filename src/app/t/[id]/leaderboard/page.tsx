@@ -335,16 +335,19 @@ export default function LeaderboardPage() {
                           (r) => r.hole === h.hole && r.winnerId === entry.playerId && r.skinsValue > 0
                         );
                         const isProvisional = !skinWinner && provisionalSkins.get(`${h.hole}-${entry.playerId}`);
+                        const isBirdie = h.strokes !== null && h.strokes < h.par;
                         return (
                           <td key={h.hole} className="py-1 text-center">
                             {h.strokes !== null ? (
                               <span className={cn(
-                                "inline-block min-w-[14px] text-center font-bold rounded-sm px-0.5",
+                                "inline-flex items-center justify-center min-w-[20px] h-5 text-center font-bold rounded-full px-1",
                                 skinWinner
                                   ? "bg-[#006747] text-white"
                                   : isProvisional
-                                    ? "bg-[#006747]/20 text-[#006747]"
-                                    : "text-[#1a3c2a]"
+                                    ? "bg-[#006747]/20 text-[#006747] ring-1 ring-[#006747]"
+                                    : isBirdie
+                                      ? "bg-[#006747]/20 text-[#006747]"
+                                      : "text-[#1a3c2a]"
                               )}>
                                 {h.strokes}
                               </span>
@@ -363,16 +366,19 @@ export default function LeaderboardPage() {
                           (r) => r.hole === h.hole && r.winnerId === entry.playerId && r.skinsValue > 0
                         );
                         const isProvisional = !skinWinner && provisionalSkins.get(`${h.hole}-${entry.playerId}`);
+                        const isBirdie = h.strokes !== null && h.strokes < h.par;
                         return (
                           <td key={h.hole} className="py-1 text-center">
                             {h.strokes !== null ? (
                               <span className={cn(
-                                "inline-block min-w-[14px] text-center font-bold rounded-sm px-0.5",
+                                "inline-flex items-center justify-center min-w-[20px] h-5 text-center font-bold rounded-full px-1",
                                 skinWinner
                                   ? "bg-[#006747] text-white"
                                   : isProvisional
-                                    ? "bg-[#006747]/20 text-[#006747]"
-                                    : "text-[#1a3c2a]"
+                                    ? "bg-[#006747]/20 text-[#006747] ring-1 ring-[#006747]"
+                                    : isBirdie
+                                      ? "bg-[#006747]/20 text-[#006747]"
+                                      : "text-[#1a3c2a]"
                               )}>
                                 {h.strokes}
                               </span>
