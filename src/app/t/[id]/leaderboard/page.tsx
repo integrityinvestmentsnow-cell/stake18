@@ -335,7 +335,6 @@ export default function LeaderboardPage() {
                           (r) => r.hole === h.hole && r.winnerId === entry.playerId && r.skinsValue > 0
                         );
                         const isProvisional = !skinWinner && provisionalSkins.get(`${h.hole}-${entry.playerId}`);
-                        const isBirdie = h.strokes !== null && h.strokes < h.par;
                         return (
                           <td key={h.hole} className="py-1 text-center">
                             {h.strokes !== null ? (
@@ -345,9 +344,7 @@ export default function LeaderboardPage() {
                                   ? "bg-[#006747] text-white"
                                   : isProvisional
                                     ? "bg-[#006747]/20 text-[#006747] ring-1 ring-[#006747]"
-                                    : isBirdie
-                                      ? "bg-[#006747]/20 text-[#006747]"
-                                      : "text-[#1a3c2a]"
+                                    : "text-[#1a3c2a]"
                               )}>
                                 {h.strokes}
                               </span>
@@ -366,7 +363,6 @@ export default function LeaderboardPage() {
                           (r) => r.hole === h.hole && r.winnerId === entry.playerId && r.skinsValue > 0
                         );
                         const isProvisional = !skinWinner && provisionalSkins.get(`${h.hole}-${entry.playerId}`);
-                        const isBirdie = h.strokes !== null && h.strokes < h.par;
                         return (
                           <td key={h.hole} className="py-1 text-center">
                             {h.strokes !== null ? (
@@ -376,9 +372,7 @@ export default function LeaderboardPage() {
                                   ? "bg-[#006747] text-white"
                                   : isProvisional
                                     ? "bg-[#006747]/20 text-[#006747] ring-1 ring-[#006747]"
-                                    : isBirdie
-                                      ? "bg-[#006747]/20 text-[#006747]"
-                                      : "text-[#1a3c2a]"
+                                    : "text-[#1a3c2a]"
                               )}>
                                 {h.strokes}
                               </span>
