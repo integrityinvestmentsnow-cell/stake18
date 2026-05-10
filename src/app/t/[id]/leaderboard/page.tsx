@@ -115,10 +115,10 @@ export default function LeaderboardPage() {
 
   const sortedEntries = useMemo(() => {
     return [...entries].sort((a, b) => {
-      if (b.holesCompleted !== a.holesCompleted)
-        return b.holesCompleted - a.holesCompleted;
-      if (viewMode === "net") return a.netToPar - b.netToPar;
-      return a.toPar - b.toPar;
+      const aScore = viewMode === "net" ? a.netToPar : a.toPar;
+      const bScore = viewMode === "net" ? b.netToPar : b.toPar;
+      if (aScore !== bScore) return aScore - bScore;
+      return b.holesCompleted - a.holesCompleted;
     });
   }, [entries, viewMode]);
 
@@ -175,19 +175,17 @@ export default function LeaderboardPage() {
   }
 
   function getRank(sorted: LeaderboardEntry[], index: number): string {
-    if (index === 0) return "1";
-    const prev = sorted[index - 1];
     const curr = sorted[index];
-    const prevScore = viewMode === "net" ? prev.netToPar : prev.toPar;
     const currScore = viewMode === "net" ? curr.netToPar : curr.toPar;
-    if (prevScore === currScore && prev.holesCompleted === curr.holesCompleted) {
-      const firstIdx = sorted.findIndex((e) => {
-        const eScore = viewMode === "net" ? e.netToPar : e.toPar;
-        return eScore === currScore && e.holesCompleted === curr.holesCompleted;
-      });
-      return `T${firstIdx + 1}`;
-    }
-    return String(index + 1);
+    const firstIdx = sorted.findIndex((e) => {
+      const eScore = viewMode === "net" ? e.netToPar : e.toPar;
+      return eScore === currScore;
+    });
+    const tiedCount = sorted.reduce((n, e) => {
+      const eScore = viewMode === "net" ? e.netToPar : e.toPar;
+      return eScore === currScore ? n + 1 : n;
+    }, 0);
+    return `${tiedCount > 1 ? "T" : ""}${firstIdx + 1}`;
   }
 
   function getPlayerHoleScores(playerId: number) {
