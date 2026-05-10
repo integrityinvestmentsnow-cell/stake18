@@ -48,11 +48,10 @@ export function computeLeaderboard(
     };
   });
 
-  // Sort: most holes completed first, then lowest strokes
+  // Sort PGA-style: lowest to-par first; holes-completed only as a tiebreaker
   entries.sort((a, b) => {
-    if (b.holesCompleted !== a.holesCompleted)
-      return b.holesCompleted - a.holesCompleted;
-    return a.totalStrokes - b.totalStrokes;
+    if (a.toPar !== b.toPar) return a.toPar - b.toPar;
+    return b.holesCompleted - a.holesCompleted;
   });
 
   return entries;
