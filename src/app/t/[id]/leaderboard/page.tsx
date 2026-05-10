@@ -156,7 +156,7 @@ export default function LeaderboardPage() {
     for (let hole = 1; hole <= (data.tournament.numHoles || 18); hole++) {
       const holeScores = allScores.filter((s) => s.hole === hole);
       // Only compute provisional if some but not all players have scored
-      if (holeScores.length > 0 && holeScores.length < totalPlayers) {
+      if (holeScores.length > 0) {
         const minStrokes = Math.min(...holeScores.map((s) => s.strokes));
         const playersWithMin = holeScores.filter((s) => s.strokes === minStrokes);
         // Only one player has the lowest — they provisionally have the skin
