@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isSuperAdminEmail } from "@/lib/auth";
 
 export async function GET(
   _request: Request,
@@ -89,7 +90,7 @@ export async function POST(
 
   if (!authorized) {
     const { data: { user } } = await supabase.auth.getUser();
-    if (user && user.id === tournament.owner_id) {
+    if (user && (user.id === tournament.owner_id || isSuperAdminEmail(user.email))) {
       authorized = true;
     }
   }

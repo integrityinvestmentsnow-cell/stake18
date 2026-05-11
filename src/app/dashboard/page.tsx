@@ -49,6 +49,9 @@ interface Tournament {
   buyInCents: number;
   pin: string | null;
   playerCount: number;
+  ownerId?: string;
+  ownerName?: string | null;
+  isOwn?: boolean;
 }
 
 const AVATAR_EMOJIS = ["🏌️", "⛳", "🦅", "🦈", "🔥", "🐯", "🐻", "🎯", "💎", "🌟"];
@@ -659,6 +662,9 @@ export default function DashboardPage() {
                         <span>{t.date}</span>
                         <span>{t.playerCount} players</span>
                         {t.pin && <span>PIN: {t.pin}</span>}
+                        {t.isOwn === false && t.ownerName && (
+                          <span className="italic text-[#006747]/70">by {t.ownerName}</span>
+                        )}
                       </div>
                     </Link>
                     <div className="flex items-center gap-2">

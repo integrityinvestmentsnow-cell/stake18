@@ -1,19 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-
-async function verifyOwner(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  tournamentId: string,
-  userId: string
-) {
-  const { data } = await supabase
-    .from("tournaments")
-    .select("id")
-    .eq("id", tournamentId)
-    .eq("owner_id", userId)
-    .limit(1);
-  return (data || []).length > 0;
-}
+import { isAdminForTournament } from "@/lib/auth";
 
 export async function POST(
   request: Request,
@@ -29,7 +16,7 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const isOwner = await verifyOwner(supabase, id, user.id);
+  const isOwner = await isAdminForTournament(supabase, id);
   if (!isOwner) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }

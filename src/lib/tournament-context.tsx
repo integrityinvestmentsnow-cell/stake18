@@ -16,6 +16,7 @@ interface TournamentData {
     status: string;
     pin: string | null;
     leaderboardStyle: string;
+    viewerIsAdmin?: boolean;
   };
   players: {
     id: number;

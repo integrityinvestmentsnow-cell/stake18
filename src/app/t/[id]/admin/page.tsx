@@ -81,7 +81,10 @@ export default function AdminPage() {
     const res = await fetch(`/api/t/${id}`);
     if (res.ok) {
       const data = await res.json();
-      setIsOwner(user?.id === data.tournament.ownerId);
+      setIsOwner(
+        data.tournament.viewerIsAdmin === true ||
+        user?.id === data.tournament.ownerId
+      );
       setPlayers(data.players);
       setExistingGroups(data.groups);
       setCourseHoles(

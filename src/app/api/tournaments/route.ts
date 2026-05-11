@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { generateTournamentId } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
+import { isSuperAdminEmail } from "@/lib/auth";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
@@ -89,14 +90,14 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
   }
 
-  // Verify ownership
+  // Verify ownership (or super-admin)
   const { data: tournament } = await supabase
     .from("tournaments")
     .select("owner_id")
     .eq("id", id)
     .single();
 
-  if (!tournament || tournament.owner_id !== user.id) {
+  if (!tournament || (tournament.owner_id !== user.id && !isSuperAdminEmail(user.email))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

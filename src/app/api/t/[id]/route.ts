@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isSuperAdminEmail } from "@/lib/auth";
 
 export async function GET(
   _request: Request,
@@ -17,6 +18,15 @@ export async function GET(
   if (!tournament) {
     return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
   }
+
+  // Compute whether the viewer is admin (owner or super-admin). The client
+  // uses this for UI affordances (admin dropdown, edit buttons). Server-side
+  // checks still run on every privileged action.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const viewerIsAdmin =
+    !!user && (user.id === tournament.owner_id || isSuperAdminEmail(user.email));
 
   const { data: players } = await supabase
     .from("tournament_players")
@@ -63,6 +73,7 @@ export async function GET(
       status: tournament.status,
       leaderboardStyle: tournament.leaderboard_style || "modern",
       createdAt: tournament.created_at,
+      viewerIsAdmin: viewerIsAdmin,
     },
     players: (players || []).map((p) => ({
       id: p.id,

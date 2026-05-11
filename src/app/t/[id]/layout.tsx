@@ -37,7 +37,10 @@ function TournamentLayoutInner({ children }: { children: React.ReactNode }) {
           playerCount={data.players.length}
           buyInCents={data.tournament.buyInCents}
           status={data.tournament.status}
-          isOwner={userId === data.tournament.ownerId}
+          isOwner={
+            data.tournament.viewerIsAdmin === true ||
+            userId === data.tournament.ownerId
+          }
         />
       )}
       <main className="flex-1 pb-20">{children}</main>

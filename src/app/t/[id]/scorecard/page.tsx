@@ -37,7 +37,10 @@ export default function ScorecardPage() {
   const params = useParams();
   const id = params.id as string;
   const { data: tournamentData, userId } = useTournament();
-  const isAdmin = userId === tournamentData?.tournament.ownerId;
+  const isAdmin = !!userId && (
+    tournamentData?.tournament.viewerIsAdmin === true ||
+    userId === tournamentData?.tournament.ownerId
+  );
 
   const [players, setPlayers] = useState<Player[]>([]);
   const [groups, setGroups] = useState<Group[]>([]);
