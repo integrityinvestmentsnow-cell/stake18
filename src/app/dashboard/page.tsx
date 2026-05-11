@@ -272,6 +272,59 @@ export default function DashboardPage() {
     );
   }
 
+  // Find this user's most recent OWN tournament. Super-admins can see Dane's
+  // tournaments, but the "next week" button always clones one the user owns.
+  const lastOwnTournament = tournaments.find((t) => t.isOwn !== false);
+
+  async function startNextWeek() {
+    if (!lastOwnTournament) return;
+    // Fetch full details of the previous tournament so we can clone settings.
+    const res = await fetch(`/api/t/${lastOwnTournament.id}`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const prev = data.tournament;
+
+    // Increment the "Week #N" suffix if present, otherwise append " Week #2".
+    let nextName: string = prev.name || "";
+    const weekMatch = nextName.match(/Week\s*#?(\d+)/i);
+    if (weekMatch) {
+      const next = parseInt(weekMatch[1], 10) + 1;
+      nextName = nextName.replace(weekMatch[0], `Week #${next}`);
+    } else {
+      nextName = `${nextName} Week #2`.trim();
+    }
+
+    // Next Sunday from today (or 7 days out if today is Sunday).
+    const now = new Date();
+    const dow = now.getDay(); // 0 = Sunday
+    const daysUntilSunday = dow === 0 ? 7 : 7 - dow;
+    const nextSunday = new Date(now);
+    nextSunday.setDate(now.getDate() + daysUntilSunday);
+
+    // Pre-fill the form state with cloned settings.
+    setTournamentName(nextName);
+    setTournamentDate(nextSunday.toISOString().split("T")[0]);
+    setBuyIn(String((prev.buyInCents || 2000) / 100));
+    setSkinsRule((prev.skinsRule || "carry_over") as "carry_over" | "no_carry");
+    setBirdieOrBetter(prev.birdieOrBetter === true);
+    setIsPublic(true); // Always default to public for now.
+
+    // Match course by hole count (we don't store courseId on the tournament).
+    const matched = courses.find(
+      (c) => c.num_holes === (prev.numHoles || 18)
+    );
+    if (matched) setSelectedCourseId(matched.id);
+
+    // Carry the roster: every player from the previous tournament gets
+    // pre-selected. Dane can deselect anyone who isn't playing this week.
+    const prevRosterIds = (data.players || [])
+      .map((p: { rosterPlayerId: number | null }) => p.rosterPlayerId)
+      .filter((id: number | null): id is number => typeof id === "number");
+    setSelectedPlayers(prevRosterIds);
+
+    setShowCreateTournament(true);
+  }
+
   async function createTournament(e: React.FormEvent) {
     e.preventDefault();
     if (creating) return;
@@ -411,9 +464,24 @@ export default function DashboardPage() {
 
       {/* Create Tournament */}
       <Dialog open={showCreateTournament} onOpenChange={setShowCreateTournament}>
-        <DialogTrigger render={<button type="button" />} className="w-full h-14 text-lg font-semibold mb-8 inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer">
-          Create Tournament
-        </DialogTrigger>
+        {lastOwnTournament ? (
+          <div className="grid grid-cols-2 gap-2 mb-8">
+            <button
+              type="button"
+              onClick={startNextWeek}
+              className="h-14 text-base font-semibold inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer"
+            >
+              Start Next Week
+            </button>
+            <DialogTrigger render={<button type="button" />} className="h-14 text-base font-semibold inline-flex items-center justify-center rounded-md border border-primary text-primary hover:bg-primary/5 transition-colors cursor-pointer">
+              New Tournament
+            </DialogTrigger>
+          </div>
+        ) : (
+          <DialogTrigger render={<button type="button" />} className="w-full h-14 text-lg font-semibold mb-8 inline-flex items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors cursor-pointer">
+            Create Tournament
+          </DialogTrigger>
+        )}
         <DialogContent className="bg-card border-border max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>New Tournament</DialogTitle>
