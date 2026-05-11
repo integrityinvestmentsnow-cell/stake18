@@ -70,13 +70,19 @@ export async function POST(
   let authorized = false;
 
   if (scorerId) {
-    const { data: sg } = await supabase
+    // A scorer may have multiple scorer_groups rows if they re-joined or
+    // switched groups. The most recent row reflects their current assignment,
+    // so we authorize against only that one — taking the union would let
+    // someone who switched groups still score their old group's players.
+    const { data: sgRows } = await supabase
       .from("scorer_groups")
       .select("player_ids")
       .eq("tournament_id", id)
       .eq("scorer_id", scorerId)
-      .maybeSingle();
-    if (sg && Array.isArray(sg.player_ids) && sg.player_ids.includes(playerId)) {
+      .order("id", { ascending: false })
+      .limit(1);
+    const latest = sgRows?.[0];
+    if (latest && Array.isArray(latest.player_ids) && latest.player_ids.includes(playerId)) {
       authorized = true;
     }
   }
