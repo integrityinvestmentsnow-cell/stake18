@@ -31,7 +31,13 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { name, date, buyInCents, numHoles, courseHoles: savedHoles, skinsRule, birdieOrBetter, location, isPublic } = body;
+  const { name, date, buyInCents, numHoles, courseHoles: savedHoles, skinsRule, birdieOrBetter, location, isPublic, ownerId: requestedOwnerId } = body;
+
+  // Super-admins can create on behalf of another commissioner (so Remy can
+  // set up Dane's next week). For anyone else, owner_id is always the
+  // requesting user.
+  const ownerId =
+    requestedOwnerId && isSuperAdminEmail(user.email) ? requestedOwnerId : user.id;
 
   const id = generateTournamentId();
   const holesCount = numHoles || 18;
@@ -39,7 +45,7 @@ export async function POST(request: Request) {
 
   const { error: tError } = await supabase.from("tournaments").insert({
     id,
-    owner_id: user.id,
+    owner_id: ownerId,
     name,
     date,
     buy_in_cents: buyInCents || 2000,

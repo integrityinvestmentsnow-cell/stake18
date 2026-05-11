@@ -272,14 +272,17 @@ export default function DashboardPage() {
     );
   }
 
-  // Find this user's most recent OWN tournament. Super-admins can see Dane's
-  // tournaments, but the "next week" button always clones one the user owns.
-  const lastOwnTournament = tournaments.find((t) => t.isOwn !== false);
+  // Most recent visible tournament — for super-admins this might be Dane's,
+  // for everyone else it's their own. We'll clone from whatever's at the top.
+  const lastTournament = tournaments[0];
+  // The "Start Next Week" button creates on behalf of the source's owner,
+  // so super-admin Remy cloning Dane's Week 1 gives Dane (not Remy) as owner.
+  const [cloneOwnerId, setCloneOwnerId] = useState<string | null>(null);
 
   async function startNextWeek() {
-    if (!lastOwnTournament) return;
+    if (!lastTournament) return;
     // Fetch full details of the previous tournament so we can clone settings.
-    const res = await fetch(`/api/t/${lastOwnTournament.id}`);
+    const res = await fetch(`/api/t/${lastTournament.id}`);
     if (!res.ok) return;
     const data = await res.json();
     const prev = data.tournament;
@@ -315,8 +318,22 @@ export default function DashboardPage() {
     );
     if (matched) setSelectedCourseId(matched.id);
 
+    // If we're cloning someone else's tournament (super-admin case), the new
+    // tournament needs to be owned by them and the roster picker should show
+    // their roster — not ours. Fetch and swap.
+    if (lastTournament.isOwn === false && lastTournament.ownerId) {
+      setCloneOwnerId(lastTournament.ownerId);
+      const rosterRes = await fetch(`/api/roster?ownerId=${lastTournament.ownerId}`);
+      if (rosterRes.ok) {
+        setRoster(await rosterRes.json());
+      }
+    } else {
+      setCloneOwnerId(null);
+    }
+
     // Carry the roster: every player from the previous tournament gets
-    // pre-selected. Dane can deselect anyone who isn't playing this week.
+    // pre-selected. The commissioner can deselect anyone who isn't playing
+    // this week.
     const prevRosterIds = (data.players || [])
       .map((p: { rosterPlayerId: number | null }) => p.rosterPlayerId)
       .filter((id: number | null): id is number => typeof id === "number");
@@ -324,6 +341,17 @@ export default function DashboardPage() {
 
     setShowCreateTournament(true);
   }
+
+  // When the dialog closes without creating, restore the roster to the
+  // current user's own list (so we don't leave Dane's roster on screen).
+  useEffect(() => {
+    if (!showCreateTournament && cloneOwnerId) {
+      setCloneOwnerId(null);
+      fetch("/api/roster").then(async (r) => {
+        if (r.ok) setRoster(await r.json());
+      });
+    }
+  }, [showCreateTournament, cloneOwnerId]);
 
   async function createTournament(e: React.FormEvent) {
     e.preventDefault();
@@ -346,6 +374,8 @@ export default function DashboardPage() {
         birdieOrBetter,
         location: tournamentLocation || null,
         isPublic,
+        // Super-admin only — server ignores this unless caller is super-admin.
+        ownerId: cloneOwnerId,
       }),
     });
 
@@ -464,7 +494,7 @@ export default function DashboardPage() {
 
       {/* Create Tournament */}
       <Dialog open={showCreateTournament} onOpenChange={setShowCreateTournament}>
-        {lastOwnTournament ? (
+        {lastTournament ? (
           <div className="grid grid-cols-2 gap-2 mb-8">
             <button
               type="button"

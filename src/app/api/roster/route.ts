@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isSuperAdminEmail } from "@/lib/auth";
 
-export async function GET() {
+export async function GET(request: Request) {
   const supabase = await createClient();
   const {
     data: { user },
@@ -11,10 +12,18 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Super-admins can fetch another commissioner's roster via ?ownerId=<uuid>.
+  // Everyone else only sees their own roster.
+  const url = new URL(request.url);
+  const requestedOwnerId = url.searchParams.get("ownerId");
+  const canViewOther = isSuperAdminEmail(user.email);
+  const targetOwnerId =
+    requestedOwnerId && canViewOther ? requestedOwnerId : user.id;
+
   const { data: players, error } = await supabase
     .from("roster_players")
     .select("*")
-    .eq("owner_id", user.id);
+    .eq("owner_id", targetOwnerId);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
