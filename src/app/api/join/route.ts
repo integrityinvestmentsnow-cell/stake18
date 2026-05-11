@@ -58,14 +58,19 @@ export async function POST(request: Request) {
     );
   }
 
-  // Save scorer group for tracking
+  // Upsert: re-joining the same tournament should update the existing row
+  // instead of creating a new one. The unique constraint on
+  // (tournament_id, scorer_id) enforces this at the DB level too.
   const { data: scorerGroup, error: sgError } = await supabase
     .from("scorer_groups")
-    .insert({
-      tournament_id: tournamentId,
-      scorer_id: scorerId,
-      player_ids: playerIds,
-    })
+    .upsert(
+      {
+        tournament_id: tournamentId,
+        scorer_id: scorerId,
+        player_ids: playerIds,
+      },
+      { onConflict: "tournament_id,scorer_id" }
+    )
     .select()
     .single();
 
