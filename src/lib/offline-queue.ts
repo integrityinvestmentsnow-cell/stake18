@@ -6,6 +6,7 @@ interface QueuedScore {
   playerId: number;
   hole: number;
   strokes: number;
+  scorerId: string | null;
   queuedAt: number;
 }
 
@@ -68,6 +69,7 @@ export async function flushQueue(): Promise<{
           playerId: score.playerId,
           hole: score.hole,
           strokes: score.strokes,
+          scorerId: score.scorerId,
         }),
       });
       if (res.ok) {

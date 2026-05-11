@@ -113,9 +113,10 @@ export default function ScorecardPage() {
           const saved = localStorage.getItem(`stake18-group-${id}`);
           if (saved && tournament.groups.find((g: Group) => g.id === parseInt(saved))) {
             setSelectedGroupId(parseInt(saved));
-          } else if (tournament.groups.length > 0) {
-            setSelectedGroupId(tournament.groups[0].id);
           }
+          // No fallback to tournament.groups[0] — strangers without a
+          // localStorage entry should hit the lock screen, not get auto-routed
+          // onto someone else's scorecard.
         }
       }
     }
@@ -214,6 +215,8 @@ export default function ScorecardPage() {
       return [...filtered, ...newScores];
     });
 
+    const scorerId = localStorage.getItem("stake18-scorer-id");
+
     // Try to save to server, queue if offline/failed
     let allSaved = true;
     for (const player of groupPlayers) {
@@ -226,6 +229,7 @@ export default function ScorecardPage() {
             playerId: player.id,
             hole: currentHole,
             strokes,
+            scorerId,
           }),
         });
         if (!res.ok) throw new Error("Save failed");
@@ -236,6 +240,7 @@ export default function ScorecardPage() {
           playerId: player.id,
           hole: currentHole,
           strokes,
+          scorerId,
           queuedAt: Date.now(),
         });
         allSaved = false;
@@ -300,7 +305,7 @@ export default function ScorecardPage() {
     localStorage.getItem(`stake18-group-${id}`) !== null
   );
 
-  if (!hasMyGroup && groupPlayers.length === 0) {
+  if (!hasMyGroup && !isAdmin) {
     return (
       <div className="px-4 py-12 max-w-md mx-auto text-center">
         <p className="text-3xl mb-3">🔒</p>

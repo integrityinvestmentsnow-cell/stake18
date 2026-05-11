@@ -32,7 +32,7 @@ export async function POST(
   const { id } = await params;
   const supabase = await createClient();
   const body = await request.json();
-  const { playerId, hole, strokes } = body;
+  const { playerId, hole, strokes, scorerId } = body;
 
   if (!playerId || !hole || !strokes) {
     return NextResponse.json(
@@ -45,6 +45,53 @@ export async function POST(
     return NextResponse.json(
       { error: "Invalid hole or strokes value" },
       { status: 400 }
+    );
+  }
+
+  // Fetch tournament once for both the finalized check and the admin override.
+  const { data: tournament } = await supabase
+    .from("tournaments")
+    .select("status, owner_id")
+    .eq("id", id)
+    .single();
+
+  if (!tournament) {
+    return NextResponse.json({ error: "Tournament not found" }, { status: 404 });
+  }
+
+  if (tournament.status === "finalized") {
+    return NextResponse.json(
+      { error: "Tournament is finalized; reopen it to edit scores" },
+      { status: 403 }
+    );
+  }
+
+  // Authorize: scorer assigned to this player, OR tournament owner (admin).
+  let authorized = false;
+
+  if (scorerId) {
+    const { data: sg } = await supabase
+      .from("scorer_groups")
+      .select("player_ids")
+      .eq("tournament_id", id)
+      .eq("scorer_id", scorerId)
+      .maybeSingle();
+    if (sg && Array.isArray(sg.player_ids) && sg.player_ids.includes(playerId)) {
+      authorized = true;
+    }
+  }
+
+  if (!authorized) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user && user.id === tournament.owner_id) {
+      authorized = true;
+    }
+  }
+
+  if (!authorized) {
+    return NextResponse.json(
+      { error: "Not authorized to score this player" },
+      { status: 403 }
     );
   }
 
