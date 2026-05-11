@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { isSuperAdminEmail } from "@/lib/auth";
 
 export async function GET() {
   const supabase = await createClient();
@@ -11,13 +12,23 @@ export async function GET() {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // Courses are a shared library — any commissioner can pick any course in
+  // their tournament dropdown. owner_id stays as the "added by" attribution,
+  // and edit/delete is still restricted to the original owner (or super-admin)
+  // in PATCH/DELETE below.
   const { data: courses } = await supabase
     .from("courses")
     .select("*")
-    .eq("owner_id", user.id)
     .order("created_at", { ascending: false });
 
-  return NextResponse.json(courses || []);
+  // Annotate each row with whether the current user added it, for any UI
+  // that wants to badge "yours" vs "shared".
+  const annotated = (courses || []).map((c) => ({
+    ...c,
+    isOwn: c.owner_id === user.id,
+  }));
+
+  return NextResponse.json(annotated);
 }
 
 export async function POST(request: Request) {
@@ -64,17 +75,19 @@ export async function PATCH(request: Request) {
   const body = await request.json();
   const { id, name, numHoles, holes } = body;
 
-  const { data: course, error } = await supabase
+  // Owner or super-admin can edit; everyone else gets nothing.
+  let query = supabase
     .from("courses")
     .update({
       name,
       num_holes: numHoles || 18,
       holes: holes || [],
     })
-    .eq("id", id)
-    .eq("owner_id", user.id)
-    .select()
-    .single();
+    .eq("id", id);
+  if (!isSuperAdminEmail(user.email)) {
+    query = query.eq("owner_id", user.id);
+  }
+  const { data: course, error } = await query.select().single();
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -100,11 +113,11 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "id is required" }, { status: 400 });
   }
 
-  await supabase
-    .from("courses")
-    .delete()
-    .eq("id", Number(id))
-    .eq("owner_id", user.id);
+  let del = supabase.from("courses").delete().eq("id", Number(id));
+  if (!isSuperAdminEmail(user.email)) {
+    del = del.eq("owner_id", user.id);
+  }
+  await del;
 
   return NextResponse.json({ success: true });
 }
