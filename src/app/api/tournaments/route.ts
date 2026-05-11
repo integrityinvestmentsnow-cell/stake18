@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { generateTournamentId } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { isSuperAdminEmail } from "@/lib/auth";
 
 export async function POST(request: Request) {
@@ -101,11 +102,15 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  // Delete in order (foreign key dependencies)
+  // Auth was checked above with the user's anon session. The actual cascade
+  // delete uses the service-role client so RLS doesn't silently block any of
+  // the dependent tables (which would leave orphaned rows and trip FK
+  // constraints when we try to delete tournament_players).
+  const writer = createServiceClient();
   const errors: string[] = [];
 
   const del = async (table: string, col: string, val: string) => {
-    const { error } = await supabase.from(table).delete().eq(col, val);
+    const { error } = await writer.from(table).delete().eq(col, val);
     if (error) errors.push(`${table}: ${error.message}`);
   };
 
@@ -115,7 +120,7 @@ export async function DELETE(request: Request) {
   await del("scorer_groups", "tournament_id", id);
 
   // Delete group_players for all groups in this tournament
-  const { data: groups } = await supabase
+  const { data: groups } = await writer
     .from("groups")
     .select("id")
     .eq("tournament_id", id);
@@ -128,14 +133,14 @@ export async function DELETE(request: Request) {
   await del("event_rsvps", "tournament_id", id);
   await del("player_titles", "tournament_id", id);
 
-  const { error: finalError } = await supabase.from("tournaments").delete().eq("id", id);
+  const { error: finalError } = await writer.from("tournaments").delete().eq("id", id);
   if (finalError) errors.push(`tournaments: ${finalError.message}`);
 
   // Verify the tournament is actually gone
-  const { data: check } = await supabase.from("tournaments").select("id").eq("id", id).single();
+  const { data: check } = await writer.from("tournaments").select("id").eq("id", id).maybeSingle();
   if (check) {
     return NextResponse.json({
-      error: "Delete failed — tournament still exists. RLS may be blocking the operation.",
+      error: "Delete failed — tournament still exists.",
       details: errors,
     }, { status: 500 });
   }
