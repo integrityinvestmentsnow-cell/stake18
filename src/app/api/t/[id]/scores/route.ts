@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { isSuperAdminEmail } from "@/lib/auth";
 
 export async function GET(
@@ -102,8 +103,13 @@ export async function POST(
     );
   }
 
-  // Upsert: update if exists, insert if not
-  const { data: existing } = await supabase
+  // All the auth checks above are done with the anon client (so they go through
+  // the requesting user's session). The actual write uses the service-role
+  // client so it bypasses RLS — which lets us lock the scores table down so
+  // anon-key clients can't write directly bypassing our auth.
+  const writer = createServiceClient();
+
+  const { data: existing } = await writer
     .from("scores")
     .select("id")
     .eq("player_id", playerId)
@@ -111,13 +117,13 @@ export async function POST(
     .limit(1);
 
   if (existing && existing.length > 0) {
-    await supabase
+    await writer
       .from("scores")
       .update({ strokes, updated_at: new Date().toISOString() })
       .eq("player_id", playerId)
       .eq("hole", hole);
   } else {
-    await supabase.from("scores").insert({
+    await writer.from("scores").insert({
       tournament_id: id,
       player_id: playerId,
       hole,
