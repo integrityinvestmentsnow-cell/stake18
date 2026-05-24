@@ -237,6 +237,21 @@ export default function AdminPage() {
     fetchData();
   }
 
+  async function removePlayerFromTournament(player: Player) {
+    // Confirm before removing — irreversible, and pulls any scores they've
+    // entered along with them. The skins calc, pot total, and leaderboard
+    // will all recompute automatically once the player is gone.
+    const playerScoresCount = contextScores.filter((s) => s.playerId === player.id).length;
+    const baseMsg = `Remove ${player.name} from the tournament?`;
+    const scoreWarning = playerScoresCount > 0
+      ? `\n\nThey have ${playerScoresCount} hole${playerScoresCount === 1 ? "" : "s"} of scores entered. Those scores will be deleted and the leaderboard will recalculate.`
+      : "";
+    if (!confirm(baseMsg + scoreWarning)) return;
+    await adminAction({ action: "remove_player", playerId: player.id });
+    setEditingPlayer(null);
+    fetchData();
+  }
+
   async function addPlayerToGroup(groupId: number, playerId: number) {
     await adminAction({
       action: "add_player_to_group",
@@ -823,6 +838,16 @@ export default function AdminPage() {
             <Button type="submit" className="w-full">
               Save Changes
             </Button>
+            <button
+              type="button"
+              onClick={() => editingPlayer && removePlayerFromTournament(editingPlayer)}
+              className="w-full h-10 text-sm font-medium rounded-md border border-red-200 text-red-600 hover:bg-red-50 transition-colors"
+            >
+              Remove from tournament
+            </button>
+            <p className="text-[11px] text-muted-foreground text-center">
+              Use this for no-shows or cancellations. The player and any scores they&apos;ve entered are deleted; the leaderboard and pot recompute automatically.
+            </p>
           </form>
         </DialogContent>
       </Dialog>

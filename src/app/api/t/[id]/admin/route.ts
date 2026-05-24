@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { isAdminForTournament } from "@/lib/auth";
 
 export async function POST(
@@ -136,6 +137,75 @@ export async function POST(
         .delete()
         .eq("group_id", groupId)
         .eq("player_id", playerId);
+      return NextResponse.json({ success: true });
+    }
+
+    case "remove_player": {
+      // Remove a player from the tournament entirely — for no-shows or
+      // last-minute cancellations. Cleans up every place this player is
+      // referenced so the leaderboard, skins calc, and pot all recompute as
+      // if they were never in the tournament.
+      const { playerId } = body;
+      if (!playerId) {
+        return NextResponse.json({ error: "playerId is required" }, { status: 400 });
+      }
+
+      // Verify the player actually belongs to this tournament before we start
+      // deleting things.
+      const { data: tp } = await supabase
+        .from("tournament_players")
+        .select("id")
+        .eq("id", playerId)
+        .eq("tournament_id", id)
+        .maybeSingle();
+      if (!tp) {
+        return NextResponse.json({ error: "Player not found in tournament" }, { status: 404 });
+      }
+
+      // Use the service-role client because scores RLS requires it for writes,
+      // and several of the other tables had their own RLS quirks that silently
+      // blocked anon-session deletes (same root cause as the tournament-delete
+      // fix from 05-11).
+      const writer = createServiceClient();
+
+      // 1. Delete any scores the player has entered.
+      await writer
+        .from("scores")
+        .delete()
+        .eq("tournament_id", id)
+        .eq("player_id", playerId);
+
+      // 2. Remove from any skins group they were in (group_players is keyed
+      //    by group_id but not by tournament_id; the player_id is globally
+      //    unique to this tournament, so this is safe).
+      await writer.from("group_players").delete().eq("player_id", playerId);
+
+      // 3. Strip the player from every scorer_groups.player_ids array in this
+      //    tournament. We have to fetch + filter + update because the column
+      //    is jsonb, not a relational FK.
+      const { data: scorerGroups } = await writer
+        .from("scorer_groups")
+        .select("id, player_ids")
+        .eq("tournament_id", id);
+      for (const sg of scorerGroups || []) {
+        if (Array.isArray(sg.player_ids) && sg.player_ids.includes(playerId)) {
+          const filtered = sg.player_ids.filter((p: number) => p !== playerId);
+          await writer
+            .from("scorer_groups")
+            .update({ player_ids: filtered })
+            .eq("id", sg.id);
+        }
+      }
+
+      // 4. Finally delete the tournament_players row.
+      const { error: delError } = await writer
+        .from("tournament_players")
+        .delete()
+        .eq("id", playerId);
+      if (delError) {
+        return NextResponse.json({ error: delError.message }, { status: 500 });
+      }
+
       return NextResponse.json({ success: true });
     }
 
