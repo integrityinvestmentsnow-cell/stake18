@@ -59,17 +59,17 @@ export default function TournamentPage() {
 
       <div className="w-full space-y-4 mt-4">
         <Button
-          onClick={handleScoreClick}
-          className="w-full h-16 text-lg font-semibold rounded-xl"
-        >
-          Score with PIN
-        </Button>
-        <Button
-          variant="outline"
           onClick={() => router.push(`/t/${id}/leaderboard`)}
           className="w-full h-16 text-lg font-semibold rounded-xl"
         >
           Watch the Leaderboard
+        </Button>
+        <Button
+          variant="outline"
+          onClick={handleScoreClick}
+          className="w-full h-16 text-lg font-semibold rounded-xl"
+        >
+          Score with PIN
         </Button>
       </div>
     </div>
