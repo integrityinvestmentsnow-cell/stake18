@@ -115,6 +115,13 @@ export default function LeaderboardPage() {
 
   const sortedEntries = useMemo(() => {
     return [...entries].sort((a, b) => {
+      // Players who haven't scored yet always sort to the bottom. Their
+      // nominal to-par is 0 (0 strokes − 0 par), which would otherwise tie
+      // them with actually-even-par players and land them mid-pack.
+      const aHasScores = a.holesCompleted > 0;
+      const bHasScores = b.holesCompleted > 0;
+      if (aHasScores !== bHasScores) return aHasScores ? -1 : 1;
+
       const aScore = viewMode === "net" ? a.netToPar : a.toPar;
       const bScore = viewMode === "net" ? b.netToPar : b.toPar;
       if (aScore !== bScore) return aScore - bScore;
@@ -176,12 +183,19 @@ export default function LeaderboardPage() {
 
   function getRank(sorted: LeaderboardEntry[], index: number): string {
     const curr = sorted[index];
+    // Players who haven't started don't get a real rank — show a dash
+    // instead of "T18" or similar, which would imply they're tied with the
+    // actually-last-place player.
+    if (curr.holesCompleted === 0) return "—";
     const currScore = viewMode === "net" ? curr.netToPar : curr.toPar;
-    const firstIdx = sorted.findIndex((e) => {
+    // Only compare against players who have started; unscored players are
+    // already sorted to the bottom and shouldn't affect tie counts.
+    const scored = sorted.filter((e) => e.holesCompleted > 0);
+    const firstIdx = scored.findIndex((e) => {
       const eScore = viewMode === "net" ? e.netToPar : e.toPar;
       return eScore === currScore;
     });
-    const tiedCount = sorted.reduce((n, e) => {
+    const tiedCount = scored.reduce((n, e) => {
       const eScore = viewMode === "net" ? e.netToPar : e.toPar;
       return eScore === currScore ? n + 1 : n;
     }, 0);

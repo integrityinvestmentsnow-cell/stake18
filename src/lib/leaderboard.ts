@@ -48,8 +48,13 @@ export function computeLeaderboard(
     };
   });
 
-  // Sort PGA-style: lowest to-par first; holes-completed only as a tiebreaker
+  // Sort PGA-style: lowest to-par first; holes-completed only as a tiebreaker.
+  // Players who haven't scored yet (holesCompleted === 0) always go to the
+  // bottom — their nominal toPar of 0 would otherwise mid-pack them.
   entries.sort((a, b) => {
+    const aHasScores = a.holesCompleted > 0;
+    const bHasScores = b.holesCompleted > 0;
+    if (aHasScores !== bHasScores) return aHasScores ? -1 : 1;
     if (a.toPar !== b.toPar) return a.toPar - b.toPar;
     return b.holesCompleted - a.holesCompleted;
   });
