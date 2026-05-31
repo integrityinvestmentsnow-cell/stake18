@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 
 // Look up tournament by PIN
 export async function GET(request: Request) {
@@ -47,7 +48,6 @@ export async function GET(request: Request) {
 
 // Create a scorer group + skins group from player selection
 export async function POST(request: Request) {
-  const supabase = await createClient();
   const body = await request.json();
   const { tournamentId, playerIds, scorerId } = body;
 
@@ -58,10 +58,18 @@ export async function POST(request: Request) {
     );
   }
 
-  // Upsert: re-joining the same tournament should update the existing row
-  // instead of creating a new one. The unique constraint on
-  // (tournament_id, scorer_id) enforces this at the DB level too.
-  const { data: scorerGroup, error: sgError } = await supabase
+  // Use the service-role client for the writes. scorer_groups has no UPDATE
+  // policy (only SELECT/INSERT/DELETE all return true), so the upsert's
+  // ON CONFLICT path was being rejected by RLS whenever a scorer re-joined.
+  // The service-role client bypasses RLS entirely, and the rest of the join
+  // flow (anyone with the PIN can score their group) is gated at the
+  // /api/t/[id]/scores layer regardless.
+  const writer = createServiceClient();
+
+  // Upsert: re-joining the same tournament updates the existing row instead
+  // of creating a new one. The unique constraint on
+  // (tournament_id, scorer_id) enforces uniqueness at the DB level too.
+  const { data: scorerGroup, error: sgError } = await writer
     .from("scorer_groups")
     .upsert(
       {
@@ -80,14 +88,14 @@ export async function POST(request: Request) {
 
   // Create a skins group with these players
   // Count existing groups to auto-name
-  const { count } = await supabase
+  const { count } = await writer
     .from("groups")
     .select("*", { count: "exact", head: true })
     .eq("tournament_id", tournamentId);
 
   const groupName = `Group ${(count || 0) + 1}`;
 
-  const { data: skinsGroup, error: gError } = await supabase
+  const { data: skinsGroup, error: gError } = await writer
     .from("groups")
     .insert({ tournament_id: tournamentId, name: groupName })
     .select()
@@ -98,7 +106,7 @@ export async function POST(request: Request) {
   }
 
   // Add players to the skins group
-  await supabase.from("group_players").insert(
+  await writer.from("group_players").insert(
     playerIds.map((playerId: number) => ({
       group_id: skinsGroup.id,
       player_id: playerId,
@@ -114,7 +122,6 @@ export async function POST(request: Request) {
 
 // Update a scorer's group (swap players)
 export async function PATCH(request: Request) {
-  const supabase = await createClient();
   const body = await request.json();
   const { scorerGroupId, groupId, playerIds } = body;
 
@@ -125,21 +132,24 @@ export async function PATCH(request: Request) {
     );
   }
 
+  // Service-role writes for the same RLS reason as POST above.
+  const writer = createServiceClient();
+
   // Update scorer group
   if (scorerGroupId) {
-    await supabase
+    await writer
       .from("scorer_groups")
       .update({ player_ids: playerIds })
       .eq("id", scorerGroupId);
   }
 
   // Clear existing players from skins group and re-add
-  await supabase
+  await writer
     .from("group_players")
     .delete()
     .eq("group_id", groupId);
 
-  await supabase.from("group_players").insert(
+  await writer.from("group_players").insert(
     playerIds.map((playerId: number) => ({
       group_id: groupId,
       player_id: playerId,
