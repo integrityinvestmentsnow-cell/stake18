@@ -171,6 +171,33 @@ export default function AdminPage() {
   }
 
   async function finalizeTournament() {
+    // Warn if any players still have holes to enter — the whole tournament
+    // becomes read-only on finalize, so half-scored rounds get locked out.
+    // (Happened live on Sept 20 — 22 holes still open, admin hit finalize
+    // early, scorers on the last few holes got silent 403s until reopen.)
+    const numHoles = courseHoles.length || 18;
+    const playersMissing = players
+      .map((p) => ({
+        name: p.name,
+        done: contextScores.filter((s) => s.playerId === p.id).length,
+      }))
+      .filter((p) => p.done > 0 && p.done < numHoles);
+    const totalHolesMissing = playersMissing.reduce(
+      (n, p) => n + (numHoles - p.done),
+      0
+    );
+
+    if (playersMissing.length > 0) {
+      const msg =
+        `⚠️ ${playersMissing.length} player${playersMissing.length === 1 ? "" : "s"} ` +
+        `still ${playersMissing.length === 1 ? "has" : "have"} scores to enter ` +
+        `(${totalHolesMissing} hole${totalHolesMissing === 1 ? "" : "s"} missing).\n\n` +
+        `Finalizing locks the tournament — nobody can enter scores until you ` +
+        `Reopen it.\n\n` +
+        `Are you sure you want to finalize now?`;
+      if (!confirm(msg)) return;
+    }
+
     await adminAction({ action: "finalize" });
     setStatus("finalized");
   }
@@ -747,10 +774,16 @@ export default function AdminPage() {
               )}
               <Button
                 onClick={finalizeTournament}
-                className={`w-full h-12 ${allComplete ? "bg-[#006747] hover:bg-[#005538]" : "bg-gray-400 hover:bg-gray-500"}`}
+                className={`w-full h-12 ${allComplete ? "bg-[#006747] hover:bg-[#005538]" : "bg-red-600 hover:bg-red-700"}`}
               >
-                Finalize Tournament
+                {allComplete ? "Finalize Tournament" : "Finalize Early (scores still open)"}
               </Button>
+              {!allComplete && (
+                <p className="text-[11px] text-red-600 text-center font-medium">
+                  Not everyone has finished. Finalizing now will lock scoring
+                  for anyone still entering holes.
+                </p>
+              )}
             </div>
           );
         })()}
