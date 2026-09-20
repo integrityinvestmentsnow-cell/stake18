@@ -220,12 +220,17 @@ export default function ScorecardPage() {
 
     const scorerId = localStorage.getItem("stake18-scorer-id");
 
-    // Try to save to server, queue if offline/failed
+    // Try to save each player's score. Differentiate the failure modes:
+    //  - 403 with a "finalized" or "authorized" message → surface to the user
+    //    with a clear explanation; don't queue (the queue would 403 forever).
+    //  - Anything else (network drop, 500, timeout) → queue for later sync.
     let allSaved = true;
+    let rejectedReason: string | null = null;
     for (const player of groupPlayers) {
       const strokes = holeScores[player.id] ?? currentPar;
+      let res: Response | null = null;
       try {
-        const res = await fetch(`/api/t/${id}/scores`, {
+        res = await fetch(`/api/t/${id}/scores`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -235,9 +240,33 @@ export default function ScorecardPage() {
             scorerId,
           }),
         });
-        if (!res.ok) throw new Error("Save failed");
       } catch {
-        // Queue for later sync
+        // True network error — queue for later sync
+        queueScore({
+          tournamentId: id,
+          playerId: player.id,
+          hole: currentHole,
+          strokes,
+          scorerId,
+          queuedAt: Date.now(),
+        });
+        allSaved = false;
+        continue;
+      }
+
+      if (res.ok) continue;
+
+      if (res.status === 403) {
+        // Server actively rejected — don't queue, tell the user why.
+        let body: { error?: string } = {};
+        try {
+          body = await res.json();
+        } catch {}
+        rejectedReason = body.error || "Not authorized to score this player";
+        allSaved = false;
+      } else {
+        // Some other server error (500, 502, etc.) — treat as transient,
+        // queue for later so it can retry.
         queueScore({
           tournamentId: id,
           playerId: player.id,
@@ -254,6 +283,16 @@ export default function ScorecardPage() {
 
     if (allSaved) {
       toast.success(`Hole ${currentHole} saved`);
+    } else if (rejectedReason) {
+      // 403 path — either finalized or unauthorized. Show a clear message
+      // so the scorer knows to ask the admin, not tap "Sync now" forever.
+      const isFinalized = /finaliz/i.test(rejectedReason);
+      toast.error(
+        isFinalized
+          ? "Tournament is finalized — ask the admin to Reopen it before entering more scores"
+          : rejectedReason,
+        { duration: 8000 }
+      );
     } else {
       toast.warning(`Hole ${currentHole} saved offline — will sync when connected`);
     }
@@ -408,6 +447,15 @@ export default function ScorecardPage() {
                     setQueuedCount(getQueuedCount());
                     if (result.synced > 0) {
                       toast.success(`${result.synced} score${result.synced > 1 ? "s" : ""} synced`);
+                    }
+                    if (result.failed > 0 && result.rejectedReason) {
+                      const isFinalized = /finaliz/i.test(result.rejectedReason);
+                      toast.error(
+                        isFinalized
+                          ? `${result.failed} score${result.failed > 1 ? "s" : ""} still stuck — tournament is finalized. Ask the admin to Reopen it, then Sync again.`
+                          : `${result.failed} score${result.failed > 1 ? "s" : ""} rejected: ${result.rejectedReason}`,
+                        { duration: 10000 }
+                      );
                     }
                   }}
                   className="font-semibold underline ml-2"

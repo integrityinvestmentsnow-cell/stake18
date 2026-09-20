@@ -53,16 +53,19 @@ export function getQueuedScoresForTournament(
 export async function flushQueue(): Promise<{
   synced: number;
   failed: number;
+  rejectedReason?: string;
 }> {
   const queue = getQueue();
   if (queue.length === 0) return { synced: 0, failed: 0 };
 
   let synced = 0;
   const stillFailed: QueuedScore[] = [];
+  let rejectedReason: string | undefined;
 
   for (const score of queue) {
+    let res: Response | null = null;
     try {
-      const res = await fetch(`/api/t/${score.tournamentId}/scores`, {
+      res = await fetch(`/api/t/${score.tournamentId}/scores`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -72,18 +75,33 @@ export async function flushQueue(): Promise<{
           scorerId: score.scorerId,
         }),
       });
-      if (res.ok) {
-        synced++;
-      } else {
-        stillFailed.push(score);
-      }
     } catch {
+      // True network error — keep in queue, will retry on next flush
       stillFailed.push(score);
+      continue;
+    }
+
+    if (res.ok) {
+      synced++;
+      continue;
+    }
+
+    // Score kept in the queue so the user can retry after the underlying
+    // issue clears (typically an admin reopening a finalized tournament).
+    stillFailed.push(score);
+
+    // Capture the first 403 rationale so the caller can surface it to
+    // the user — otherwise sync-now looks like it silently did nothing.
+    if (res.status === 403 && !rejectedReason) {
+      try {
+        const body = await res.json();
+        if (body?.error) rejectedReason = body.error as string;
+      } catch {}
     }
   }
 
   saveQueue(stillFailed);
-  return { synced, failed: stillFailed.length };
+  return { synced, failed: stillFailed.length, rejectedReason };
 }
 
 // Auto-sync when coming back online
