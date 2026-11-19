@@ -22,7 +22,7 @@ export async function GET() {
 
   const [{ error: readErr1 }, { error: readErr2 }] = await Promise.all([
     supabase.from("tournaments").select("id").limit(1),
-    supabase.from("skins").select("id").limit(1),
+    supabase.from("scores").select("id").limit(1),
   ]);
 
   if (readErr1 || readErr2) {
