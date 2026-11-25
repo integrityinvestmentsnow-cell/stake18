@@ -17,10 +17,19 @@ interface Event {
   playerCount: number;
 }
 
+interface Stats {
+  tournaments: number;
+  scores: number;
+  golfers: number;
+  rounds: number;
+  moneyMovedCents: number;
+}
+
 export default function Home() {
   const router = useRouter();
   const [events, setEvents] = useState<Event[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(true);
+  const [stats, setStats] = useState<Stats | null>(null);
 
   useEffect(() => {
     fetch("/api/events")
@@ -30,6 +39,11 @@ export default function Home() {
         setLoadingEvents(false);
       })
       .catch(() => setLoadingEvents(false));
+
+    fetch("/api/stats")
+      .then((res) => res.json())
+      .then((data) => setStats(data))
+      .catch(() => {});
   }, []);
 
   return (
@@ -44,6 +58,46 @@ export default function Home() {
           Live golf skins with your crew. Score, track, and settle up — all
           from your phone.
         </p>
+      </div>
+
+      {/* Live stats */}
+      <div className="w-full max-w-lg mx-auto mb-10">
+        <div className="flex items-center justify-center gap-2 mb-3">
+          <span className="w-2 h-2 rounded-full bg-[#006747] animate-pulse" />
+          <span className="text-xs font-semibold tracking-widest uppercase text-[#006747]">
+            Live Stats
+          </span>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <StatCard
+            value={stats?.rounds}
+            label="Rounds tracked"
+            big
+          />
+          <StatCard
+            value={stats?.golfers}
+            label="Golfers"
+            big
+          />
+          <StatCard
+            value={stats?.tournaments}
+            label="Tournaments"
+          />
+          <StatCard
+            value={stats?.scores}
+            label="Scores entered"
+          />
+        </div>
+        <div className="mt-3 rounded-2xl bg-[#006747] text-white px-5 py-4 flex items-center justify-between">
+          <span className="text-sm font-medium opacity-80 uppercase tracking-wider">
+            Money moved
+          </span>
+          <span className="text-2xl font-extrabold tabular-nums">
+            {stats
+              ? `$${Math.round(stats.moneyMovedCents / 100).toLocaleString("en-US")}`
+              : "—"}
+          </span>
+        </div>
       </div>
 
       {/* Actions */}
@@ -217,5 +271,31 @@ export default function Home() {
         No download required. Share a PIN and play.
       </p>
     </main>
+  );
+}
+
+function StatCard({
+  value,
+  label,
+  big = false,
+}: {
+  value: number | undefined;
+  label: string;
+  big?: boolean;
+}) {
+  const display = value == null ? "—" : value.toLocaleString("en-US");
+  return (
+    <div className="rounded-2xl border border-[#d4e4db] bg-white px-4 py-3 shadow-sm">
+      <div
+        className={`font-extrabold text-[#006747] leading-none tabular-nums ${
+          big ? "text-4xl sm:text-5xl" : "text-3xl"
+        }`}
+      >
+        {display}
+      </div>
+      <div className="text-xs text-muted-foreground mt-1.5 font-medium">
+        {label}
+      </div>
+    </div>
   );
 }
